@@ -33,6 +33,9 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D3 | First stack: **Python + Pygame**, deployed to the web with **pygbag** | Preference for Python. |
 | D4 | **Deploy early** with an empty window, before writing game logic | Find web-deployment problems while the codebase is ~30 lines, not ~500. |
 | D5 | **Switch to TypeScript** (web app on GitHub Pages) | See "Phase 2" below. Both critical requirements are better served by a native web app. |
+| D6 | **Vitest** for unit tests | Same ecosystem as Vite; runs TypeScript without extra configuration. |
+| D7 | **Two board representations:** a simple list of columns for the game, a private bitboard for the solver | Game rules and UI stay readable, while the solver gets the speed it needs. The solver receives only the move history and returns a column, so no shared state has to be kept in sync. Two independent rule implementations can also be cross-checked on thousands of random games. |
+| D8 | `dropDisc` **returns a new board** instead of changing the existing one | Code still holding the old board (such as a running animation) is not affected. The cost is negligible, since the fast search happens on the bitboard. |
 
 ---
 
@@ -79,6 +82,21 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
   - Check `git status` before `git add .`.
 - Setup stage complete. Next: game logic with unit tests.
 
+### 2026-11-09 (continued) — Test tooling and the first game logic
+- Installed Vitest 5.1.0 as a development dependency: 20 packages added, 0 known vulnerabilities.
+- Wrote a temporary sanity test, watched it pass, then broke it on purpose to confirm a failure is reported and to learn how to read the report.
+- Added the `npm test` script (`vitest run`): `815a813`.
+- Chose the board representation after comparing a matrix, a list of columns and a bitboard (D7).
+- Added `src/game/board.ts` (constants, `Player` and `Board` types, `createBoard`) and 2 unit tests, and deleted the temporary test: `6c1c40f`.
+- `npm run build` still passes, and the site is still about 1.5 KB: neither the tests nor the unused game code reach the bundle.
+- Stopped in the middle of step 10: `isLegalMove`, `dropDisc` and 5 more tests were specified, but they have not been run or committed yet.
+- Lessons:
+  - A test only means something once it has been seen to fail.
+  - Vitest does not check types; `tsc` (part of `npm run build`) does, so run both before pushing.
+  - In JSON every item except the last needs a trailing comma, and the error is often marked on the line after the mistake.
+  - Add files by name when something temporary must stay out of a commit.
+  - The `LF will be replaced by CRLF` warning is about line endings on Windows and is harmless here.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -120,6 +138,12 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - Design a social preview image for the repo (shown when the link is shared on LinkedIn).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
 
+## Phase 4 — Game logic and unit tests (started 2026-11-09)
+
+**What was built so far:** Vitest with an `npm test` script, and an empty board with 2 passing tests.
+
+**Still to do in this phase:** finish dropping a disc and legal moves (step 10), detect wins and draws, and run the tests in GitHub Actions so a failing test blocks deployment.
+
 ---
 
 ## Tools used so far
@@ -141,6 +165,7 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | GitHub Actions | — | CI/CD: build and deploy on every push | In use |
 | GitHub Pages | — | Hosts the live site | In use |
 | GitHub Actions extension (VS Code) | 0.32.3 | Validates workflow files in the editor | In use |
+| Vitest | 5.1.0 | Unit tests | In use |
 
 ## Commit history
 
@@ -154,6 +179,9 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | `a3ae92b` | Set up Vite + TypeScript project skeleton |
 | `b28a877` | Configure Vite base path for GitHub Pages |
 | `e5445ae` | Add GitHub Actions workflow to deploy to Pages |
+| `c2037e7` | Update journey: TypeScript setup and first deploy |
+| `815a813` | Add Vitest and npm test script |
+| `6c1c40f` | Add empty board with tests |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -162,7 +190,7 @@ The Python prototype remains in the history at `47bbc6f`.
 ## Roadmap
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
-2. **Game logic** with unit tests.
+2. **Game logic** with unit tests. *In progress: test tooling and the empty board are done.*
 3. **Solver:** correctness first (benchmark tests), then speed, then an opening book.
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
