@@ -2,6 +2,8 @@
 
 A running log of how this project was planned and built: the steps, the tools, the decisions, and what changed along the way. It is updated at the end of every work session.
 
+**Live site:** https://gilad-benshlomo.github.io/connect-four-solver/
+
 ---
 
 ## Goal
@@ -61,8 +63,21 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - Re-evaluated the stack against the two critical requirements (see Phase 2).
 - Checked the new toolchain: Node.js v24.16.0, npm 11.13.0.
 - Removed the Python prototype in a dedicated commit: `d813f5b` — *Remove Python prototype before TypeScript rewrite* (`git rm` for tracked files; ignored leftovers `game/build` and `.venv` deleted separately).
-- Started this journey document.
-- Next: add this document to the repo and set up the TypeScript project.
+- Started this journey document and added it to the repo: `430f95e`.
+- Scaffolded the TypeScript project with `create-vite` 9.3.4 (template `vanilla-ts`, no framework), choosing *Ignore files and continue* so LICENSE, README and docs were kept. This also replaced the Python `.gitignore` with the Node.js one (`node_modules`, `dist`, logs, editor files).
+- `npm install`: 17 packages, 0 known vulnerabilities. `package-lock.json` pins exact versions and is committed.
+- Ran the dev server (`npm run dev`, ready in ~200 ms) and saw Hot Module Replacement update the page title without a reload.
+- Replaced the Vite demo with a minimal page (dark background `#141826`, the same colour as the Python prototype) and removed the demo files.
+- `npm run build` (`tsc && vite build`): the whole site is three files, about 1.5 KB, under 1 KB gzipped — compared with megabytes of Python runtime in the pygbag version.
+- Committed the clean skeleton: `a3ae92b`.
+- Set Vite's `base` to `/connect-four-solver/` so asset links work under the GitHub Pages sub-path; verified with `npm run preview`: `b28a877`.
+- Set the GitHub Pages source to **GitHub Actions** and added a workflow (`.github/workflows/deploy.yml`): on every push to `main` it checks out the code, sets up Node 24, runs `npm ci` and `npm run build`, uploads `dist`, and deploys. `e5445ae`.
+- First deployment succeeded in 25 seconds (build 9 s, deploy 10 s). The site loads quickly on desktop and on a phone over 4G.
+- Lessons:
+  - An unsaved file (● on the tab) is invisible to every tool; Vite's HMR made that obvious.
+  - While a server runs, the terminal belongs to it; stop it (`q` or `Ctrl+C`) and wait for the prompt before running the next command.
+  - Check `git status` before `git add .`.
+- Setup stage complete. Next: game logic with unit tests.
 
 ---
 
@@ -91,6 +106,20 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 
 **Trade-off accepted:** learning a new language and toolchain (TypeScript, HTML/CSS, Node.js, npm, Vite) in exchange for a better result on both critical requirements.
 
+## Phase 3 — TypeScript setup and first deploy (2026-11-09)
+
+**What was built:** a Vite + TypeScript project, a minimal page, and a CI/CD pipeline that builds and publishes the site to GitHub Pages on every push.
+
+**Measured:**
+- Production build: ~1.5 KB total (<1 KB gzipped).
+- Pipeline: 25 s from push to live site.
+- Loads quickly on a phone over 4G.
+
+**Open items noted for later:**
+- Update the repo description and README (both still mention Python).
+- Design a social preview image for the repo (shown when the link is shared on LinkedIn).
+- Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
+
 ---
 
 ## Tools used so far
@@ -107,6 +136,11 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | pygbag | — | Python-to-browser packaging | Retired with Phase 1 |
 | Node.js | 24.16.0 | Runs the TypeScript toolchain | In use |
 | npm | 11.13.0 | Package installer for JavaScript | In use |
+| Vite | 8.3.6 | Dev server, TypeScript transpiling, production build | In use |
+| TypeScript | ~7.0.2 | Language for the game, solver and UI | In use |
+| GitHub Actions | — | CI/CD: build and deploy on every push | In use |
+| GitHub Pages | — | Hosts the live site | In use |
+| GitHub Actions extension (VS Code) | 0.32.3 | Validates workflow files in the editor | In use |
 
 ## Commit history
 
@@ -116,6 +150,10 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | `96c541a` | Add requirements.txt with project dependencies |
 | `47bbc6f` | Add initial Pygame window with async game loop |
 | `d813f5b` | Remove Python prototype before TypeScript rewrite |
+| `430f95e` | Add development journey document |
+| `a3ae92b` | Set up Vite + TypeScript project skeleton |
+| `b28a877` | Configure Vite base path for GitHub Pages |
+| `e5445ae` | Add GitHub Actions workflow to deploy to Pages |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -123,7 +161,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 ## Roadmap
 
-1. **Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.
+1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. **Game logic** with unit tests.
 3. **Solver:** correctness first (benchmark tests), then speed, then an opening book.
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
