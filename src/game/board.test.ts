@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest';
-import { COLUMNS, ROWS, createBoard, dropDisc, isLegalMove, winningLine } from './board';
-
+import { COLUMNS, ROWS, createBoard, dropDisc, isBoardFull, isLegalMove, winningLine } from './board';
 test('a new board has 7 empty columns', () => {
   const board = createBoard();
   expect(board).toHaveLength(COLUMNS);
@@ -114,4 +113,35 @@ test("an opponent's disc breaks the line", () => {
 
 test('an empty column has no winning line', () => {
   expect(winningLine(createBoard(), 0)).toBeNull();
+})
+
+;// Fills every column bottom to top, alternating X and O.
+// Wins are irrelevant here: isBoardFull only counts discs.
+function fillBoard() {
+  let board = createBoard();
+  for (let column = 0; column < COLUMNS; column++) {
+    for (let i = 0; i < ROWS; i++) {
+      board = dropDisc(board, column, i % 2 === 0 ? 'X' : 'O');
+    }
+  }
+  return board;
+}
+
+test('an empty board is not full', () => {
+  expect(isBoardFull(createBoard())).toBe(false);
+});
+
+test('one full column does not make the board full', () => {
+  expect(isBoardFull(fullColumnBoard(0))).toBe(false);
+});
+
+test('a board with every cell taken is full', () => {
+  expect(isBoardFull(fillBoard())).toBe(true);
+});
+
+test('a board missing a single disc is not full', () => {
+  const almost = fillBoard().map((discs, index) =>
+    index === 6 ? discs.slice(0, -1) : discs,
+  );
+  expect(isBoardFull(almost)).toBe(false);
 });

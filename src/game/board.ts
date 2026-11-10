@@ -57,3 +57,7 @@ export function winningLine(board: Board, column: number): Cell[] | null {
   }
   return null;
 }
+
+export function isBoardFull(board: Board): boolean {
+  return board.every((discs) => discs.length === ROWS);
+}
