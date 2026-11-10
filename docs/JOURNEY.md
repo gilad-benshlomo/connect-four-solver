@@ -36,6 +36,12 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D6 | **Vitest** for unit tests | Same ecosystem as Vite; runs TypeScript without extra configuration. |
 | D7 | **Two board representations:** a simple list of columns for the game, a private bitboard for the solver | Game rules and UI stay readable, while the solver gets the speed it needs. The solver receives only the move history and returns a column, so no shared state has to be kept in sync. Two independent rule implementations can also be cross-checked on thousands of random games. |
 | D8 | `dropDisc` **returns a new board** instead of changing the existing one | Code still holding the old board (such as a running animation) is not affected. The cost is negligible, since the fast search happens on the bitboard. |
+| D9 | **A game-state layer** on top of the board: board, move history and status. The UI talks only to this layer | The rules can refuse illegal sequences (two moves in a row by the same player, moves after the game ended) even if the UI has a bug. |
+| D10 | The current player is **derived from the number of moves**, not stored | One source of truth: the turn can never disagree with the history. |
+| D11 | **X always moves first**; which player is the human is decided by the UI | The rules and the solver only need to know who moved first. Human vs. computer, two humans or computer vs. computer are all UI changes. |
+| D12 | The status is a **discriminated union**: playing, won (with winner and line) or draw | Contradictory states cannot be written, and TypeScript refuses to read a winner without first checking that the game was won. |
+| D13 | **Unit tests run in GitHub Actions** after installing dependencies and before the build | A failing test stops the workflow, so broken logic never reaches the live site. |
+| D14 | **Comments in English:** JSDoc above every exported function and type, short `//` comments only where the reason is not obvious | Readable for anyone visiting the repo; VS Code shows JSDoc on hover. |
 
 ---
 
@@ -97,6 +103,27 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
   - Add files by name when something temporary must stay out of a commit.
   - The `LF will be replaced by CRLF` warning is about line endings on Windows and is harmless here.
 
+### 2026-11-10 — Game logic complete
+- Started by checking the state left from the last session (`git status`, `git log --oneline -3`, `npm test`).
+- Added `isLegalMove` and `dropDisc`, with tests for stacking, immutability and the board's edges: `7889976`.
+- Added `winningLine`: it checks only around the last disc, counts in both directions along each of the four lines, and returns the winning cells so the UI can highlight them: `f6d86d8`.
+- Broke `winningLine` on purpose with the two classic bugs (counting in one direction only, and `> 4` instead of `>= 4`). Each was caught by a different set of tests, which showed why several examples are needed.
+- During that exercise an edit accidentally deleted `return null`. The tests showed only the symptom (`undefined` instead of `null`); `tsc` pointed to the exact line, thanks to the explicit return type.
+- Added `isBoardFull`, tested at the boundary of 41 and 42 discs: `f827ae2`.
+- Added English comments to the board code and its tests, as a separate comments-only commit verified by the unchanged test count: `1e9de2f`.
+- Designed the game-state layer (D9–D12) and added `game.ts` with `newGame` and `currentPlayer`: `9d8d9f1`.
+- Added `playMove`, which checks for a win before a full board. Two hand-built 42-move games test a draw and a win that also fills the board; reversing the two checks on purpose made only the second one fail: `6b42417`.
+- Added a `Run unit tests` step to the workflow (D13): `5e5b5a5`. The build job passed and GitHub showed a Vitest test report (2 files, 32 tests). The deploy job failed with *Deployment failed, try again later*, a GitHub Pages error; *Re-run failed jobs* succeeded.
+- Game logic stage complete: 32 tests across `board.test.ts` and `game.test.ts`.
+- Lessons:
+  - Vitest finds wrong behaviour; `tsc` finds code that does not match its types. Run both before every commit.
+  - Break a test on purpose to prove it catches the bug it was written for.
+  - You cannot test every board. Test one example of each case the code tells apart (equivalence classes), plus the boundaries between them.
+  - When a game must not end early, design the final board first, then find a move order that reaches it.
+  - When editing, select only the characters that change; selecting whole lines is how `return null` was lost.
+  - Paste one command at a time: two commands on one line make Git read the second as file names.
+  - Files opened from a Git or extension view are read-only copies; `code <path>` opens the real file.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -137,12 +164,16 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - Update the repo description and README (both still mention Python).
 - Design a social preview image for the repo (shown when the link is shared on LinkedIn).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
+- GitHub notes that `ubuntu-latest` is moving to Ubuntu 26. The workflow uses only Node, npm and Vite, so no change is expected.
 
-## Phase 4 — Game logic and unit tests (started 2026-11-09)
+## Phase 4 — Game logic and unit tests (2026-11-09 → 2026-11-10)
 
-**What was built so far:** Vitest with an `npm test` script, and an empty board with 2 passing tests.
+**What was built:**
+- `src/game/board.ts`: the board as a list of columns, legal moves, dropping a disc, win detection that returns the winning cells, and full-board detection.
+- `src/game/game.ts`: the game state (board, move history, status), the current player derived from the history, and `playMove`, which refuses moves after the game is over.
+- 32 unit tests, run locally with `npm test` and in GitHub Actions before every build.
 
-**Still to do in this phase:** finish dropping a disc and legal moves (step 10), detect wins and draws, and run the tests in GitHub Actions so a failing test blocks deployment.
+**Measured:** the whole test suite runs in about 130 ms. The site bundle is unchanged (the game code is not yet imported by the page).
 
 ---
 
@@ -182,6 +213,14 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | `c2037e7` | Update journey: TypeScript setup and first deploy |
 | `815a813` | Add Vitest and npm test script |
 | `6c1c40f` | Add empty board with tests |
+| `84b87ba` | Update journey: test tooling and first game logic |
+| `7889976` | Add dropDisc and isLegalMove with tests |
+| `f6d86d8` | Add win detection with tests |
+| `f827ae2` | Add full-board detection with tests |
+| `1e9de2f` | Add comments to board logic and tests |
+| `9d8d9f1` | Add game state with turn tracking |
+| `6b42417` | Add playMove with win, draw and game-over handling |
+| `5e5b5a5` | Run unit tests in CI before building |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -190,7 +229,7 @@ The Python prototype remains in the history at `47bbc6f`.
 ## Roadmap
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
-2. **Game logic** with unit tests. *In progress: test tooling and the empty board are done.*
+2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
 3. **Solver:** correctness first (benchmark tests), then speed, then an opening book.
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
