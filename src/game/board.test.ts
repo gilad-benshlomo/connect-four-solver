@@ -1,16 +1,26 @@
+/**
+ * Unit tests for the board and rules in board.ts.
+ *
+ * Conventions:
+ * - Games are written as a list of columns: play([3, 3, 4]) means
+ *   X plays column 3, O plays column 3, X plays column 4. X always starts.
+ * - In the drawings, the bottom line is row 0.
+ */
 import { expect, test } from 'vitest';
 import { COLUMNS, ROWS, createBoard, dropDisc, isBoardFull, isLegalMove, winningLine } from './board';
-test('a new board has 7 empty columns', () => {
-  const board = createBoard();
-  expect(board).toHaveLength(COLUMNS);
-  expect(board.every((column) => column.length === 0)).toBe(true);
-});
 
-test('columns are independent of each other', () => {
-  const board = createBoard();
-  board[0].push('X');
-  expect(board[1]).toHaveLength(0);
-});
+// ---------- Helpers ----------
+
+/** Plays a sequence of columns, X first, alternating. */
+function play(moves: number[]) {
+  let board = createBoard();
+  moves.forEach((column, i) => {
+    board = dropDisc(board, column, i % 2 === 0 ? 'X' : 'O');
+  });
+  return board;
+}
+
+/** A board where only `column` is full, with alternating discs. */
 function fullColumnBoard(column: number) {
   let board = createBoard();
   for (let i = 0; i < ROWS; i++) {
@@ -18,6 +28,38 @@ function fullColumnBoard(column: number) {
   }
   return board;
 }
+
+/**
+ * A board with every cell taken, filled column by column.
+ * It is not a reachable game position (it contains several wins),
+ * which is fine: isBoardFull only counts discs.
+ */
+function fillBoard() {
+  let board = createBoard();
+  for (let column = 0; column < COLUMNS; column++) {
+    for (let i = 0; i < ROWS; i++) {
+      board = dropDisc(board, column, i % 2 === 0 ? 'X' : 'O');
+    }
+  }
+  return board;
+}
+
+// ---------- Empty board ----------
+
+test('a new board has 7 empty columns', () => {
+  const board = createBoard();
+  expect(board).toHaveLength(COLUMNS);
+  expect(board.every((column) => column.length === 0)).toBe(true);
+});
+
+test('columns are independent of each other', () => {
+  // Guards against new Array(7).fill([]), where all columns are one array.
+  const board = createBoard();
+  board[0].push('X');
+  expect(board[1]).toHaveLength(0);
+});
+
+// ---------- Dropping discs and legal moves ----------
 
 test('discs stack from the bottom up', () => {
   let board = createBoard();
@@ -48,19 +90,17 @@ test('dropDisc throws on a full column', () => {
   const board = fullColumnBoard(2);
   expect(() => dropDisc(board, 2, 'X')).toThrow('Illegal move');
 });
-// Plays a sequence of columns, X first, alternating.
-function play(moves: number[]) {
-  let board = createBoard();
-  moves.forEach((column, i) => {
-    board = dropDisc(board, column, i % 2 === 0 ? 'X' : 'O');
-  });
-  return board;
-}
+
+// ---------- Win detection ----------
+// In every game below, nobody has won before the last move.
 
 test('detects a horizontal win and returns its cells', () => {
+  //  O O O . . . .
+  //  X X X X . . .
   const board = play([0, 0, 1, 1, 2, 2, 3]);
   const line = winningLine(board, 3);
   expect(line).toHaveLength(4);
+  // arrayContaining: the order of the cells does not matter.
   expect(line).toEqual(
     expect.arrayContaining([
       { column: 0, row: 0 },
@@ -77,25 +117,34 @@ test('detects a vertical win', () => {
 });
 
 test('detects a / diagonal win', () => {
-  // X at (0,0), (1,1), (2,2), (3,3)
+  //  . . . X . . .
+  //  . . X X . . .
+  //  . X O O . . .
+  //  X O O X . . O
   const board = play([0, 1, 1, 2, 3, 2, 2, 3, 3, 6, 3]);
   expect(winningLine(board, 3)).toHaveLength(4);
 });
 
 test('detects a \\ diagonal win', () => {
-  // Mirror image: X at (6,0), (5,1), (4,2), (3,3)
+  // Mirror image of the / test.
+  //  . . . X . . .
+  //  . . . X X . .
+  //  . . . O O X .
+  //  O . . X O O X
   const board = play([6, 5, 5, 4, 3, 4, 4, 3, 3, 0, 3]);
   expect(winningLine(board, 3)).toHaveLength(4);
 });
 
 test('detects a win when the last disc fills the middle of the line', () => {
-  // X X _ X  ->  X plays column 2
+  //  O O . O . . .
+  //  X X x X . . .    x = last move
   const board = play([0, 0, 1, 1, 3, 3, 2]);
   expect(winningLine(board, 2)).toHaveLength(4);
 });
 
 test('returns every cell of a line longer than four', () => {
-  // X X _ X X  ->  X plays column 2
+  //  O O . O O . .
+  //  X X x X X . .    x = last move
   const board = play([0, 0, 1, 1, 3, 3, 4, 4, 2]);
   expect(winningLine(board, 2)).toHaveLength(5);
 });
@@ -106,26 +155,16 @@ test('three in a row is not a win', () => {
 });
 
 test("an opponent's disc breaks the line", () => {
-  // X O X X  ->  only two in a row
+  //  X O X X . . O    only two X in a row
   const board = play([0, 1, 2, 6, 3]);
   expect(winningLine(board, 3)).toBeNull();
 });
 
 test('an empty column has no winning line', () => {
   expect(winningLine(createBoard(), 0)).toBeNull();
-})
+});
 
-;// Fills every column bottom to top, alternating X and O.
-// Wins are irrelevant here: isBoardFull only counts discs.
-function fillBoard() {
-  let board = createBoard();
-  for (let column = 0; column < COLUMNS; column++) {
-    for (let i = 0; i < ROWS; i++) {
-      board = dropDisc(board, column, i % 2 === 0 ? 'X' : 'O');
-    }
-  }
-  return board;
-}
+// ---------- Full board ----------
 
 test('an empty board is not full', () => {
   expect(isBoardFull(createBoard())).toBe(false);
@@ -140,6 +179,7 @@ test('a board with every cell taken is full', () => {
 });
 
 test('a board missing a single disc is not full', () => {
+  // 41 discs: the boundary just below a full board.
   const almost = fillBoard().map((discs, index) =>
     index === 6 ? discs.slice(0, -1) : discs,
   );
