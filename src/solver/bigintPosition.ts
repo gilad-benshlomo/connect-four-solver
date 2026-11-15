@@ -1,4 +1,4 @@
-import { ROWS } from '../game/board';
+import { COLUMNS, ROWS } from '../game/board';
 
 // Each column takes ROWS + 1 bits: the extra bit is an always-empty helper row
 // that stops lines from wrapping from the top of one column to the next.
@@ -22,6 +22,17 @@ function topCell(column: number): bigint {
 function columnCells(column: number): bigint {
   return ((1n << BigInt(ROWS)) - 1n) << (BigInt(column) * COLUMN_BITS);
 }
+
+/** Returns the bottom cells of all columns together. */
+function bottomRow(): bigint {
+  let bits = 0n;
+  for (let column = 0; column < COLUMNS; column++) {
+    bits |= bottomCell(column);
+  }
+  return bits;
+}
+
+const BOTTOM_ROW = bottomRow();
 
 /** Returns true if the given discs contain four in a row in any direction. */
 function hasFour(discs: bigint): boolean {
@@ -83,5 +94,15 @@ export class BigIntPosition {
     // The carry clears the taken cells below, leaving only the new disc's bit.
     const newDisc = (this.mask + bottomCell(column)) & columnCells(column);
     return hasFour(this.current | newDisc);
+  }
+
+  /**
+   * Returns a number that identifies the position: different positions always
+   * get different keys. It uses at most 49 bits, so a plain number holds it exactly.
+   */
+  key(): number {
+    // In each column the sum leaves a 1 just above the top disc, marking the
+    // column's height; the bits below it say which player owns each disc.
+    return Number(this.current + this.mask + BOTTOM_ROW);
   }
 }

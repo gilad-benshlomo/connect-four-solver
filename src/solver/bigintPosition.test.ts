@@ -27,6 +27,29 @@ function winningMoves(position: BigIntPosition): number[] {
   return winning;
 }
 
+/**
+ * Returns a simple seeded random number generator (values in [0, 1)),
+ * so that random tests run the same games every time.
+ */
+function seededRandom(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    return state / 2 ** 32;
+  };
+}
+
+/** Returns the columns that still have room. */
+function playableColumns(position: BigIntPosition): number[] {
+  const columns: number[] = [];
+  for (let column = 0; column < COLUMNS; column++) {
+    if (position.canPlay(column)) {
+      columns.push(column);
+    }
+  }
+  return columns;
+}
+
 describe('BigIntPosition', () => {
   it('starts empty, with every column playable', () => {
     const position = new BigIntPosition();
@@ -85,5 +108,41 @@ describe('BigIntPosition', () => {
     // X holds rows 3-5 of column 0 and row 0 of column 1. Without the helper
     // row, X's disc at row 1 of column 1 would look like a vertical four.
     expect(winningMoves(play([1, 0, 6, 0, 6, 0, 0, 5, 0, 5, 0, 6]))).toEqual([]);
+  });
+
+  it('gives the same key to the same position reached in a different order', () => {
+    expect(play([3, 2, 4]).key()).toBe(play([4, 2, 3]).key());
+  });
+
+  it('gives different keys when the same cells belong to different players', () => {
+    // X in column 3 and O in column 4, versus the other way round.
+    expect(play([3, 4]).key()).not.toBe(play([4, 3]).key());
+  });
+
+  it('gives one key per position over many random games', () => {
+    const random = seededRandom(1);
+    const boardByKey = new Map<number, string>();
+    const keyByBoard = new Map<string, number>();
+
+    for (let game = 0; game < 200; game++) {
+      const position = new BigIntPosition();
+      // A plain description of the board, kept alongside the bitboard.
+      const columns: string[][] = Array.from({ length: COLUMNS }, () => []);
+
+      while (position.moves < COLUMNS * ROWS) {
+        const choices = playableColumns(position);
+        const column = choices[Math.floor(random() * choices.length)];
+        columns[column].push(position.moves % 2 === 0 ? 'X' : 'O');
+        position.play(column);
+
+        const board = JSON.stringify(columns);
+        const key = position.key();
+        // One key never stands for two boards, and one board never gets two keys.
+        expect(boardByKey.get(key) ?? board).toBe(board);
+        expect(keyByBoard.get(board) ?? key).toBe(key);
+        boardByKey.set(key, board);
+        keyByBoard.set(board, key);
+      }
+    }
   });
 });
