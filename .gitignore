@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Published benchmark positions: not ours to redistribute (see docs/JOURNEY.md, D18)
+benchmarks/
