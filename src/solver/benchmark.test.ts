@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BigIntPosition } from './bigintPosition';
-import { negamax } from './negamax';
+import { negamax, solve } from './negamax';
 
 // Benchmark positions and scores published by Pascal Pons with his tutorial
 // "Solving Connect 4: how to build a perfect AI" (blog.gamesolver.org).
@@ -50,19 +50,21 @@ function play(columns: number[]): BigIntPosition {
 describe('published scores', () => {
   it('matches the losing example from the tutorial', () => {
     // Whatever the player to move plays, the opponent wins with their 7th disc.
-    expect(negamax(play(fromNotation('44455554221')))).toBe(-15);
+    const position = play(fromNotation('44455554221'));
+    expect(negamax(position)).toBe(-15);
+    expect(solve(position)).toBe(-15);
   });
 
   it.skipIf(endEasy === undefined)(
-    'matches all 1000 End-Easy positions (Test_L3_R1)',
+    'solve matches all 1000 End-Easy positions (Test_L3_R1)',
     () => {
       const cases = parseBenchmark(endEasy ?? '');
       expect(cases).toHaveLength(1000);
       for (const { line, moves, score } of cases) {
         // The line is shown in the report if this position fails.
-        expect(negamax(play(moves)), line).toBe(score);
+        expect(solve(play(moves)), line).toBe(score);
       }
     },
-    60_000, // the plain search takes a few seconds for the whole file
+    60_000, // generous: the whole file takes well under a second with pruning
   );
 });
