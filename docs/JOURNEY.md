@@ -42,6 +42,10 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D12 | The status is a **discriminated union**: playing, won (with winner and line) or draw | Contradictory states cannot be written, and TypeScript refuses to read a winner without first checking that the game was won. |
 | D13 | **Unit tests run in GitHub Actions** after installing dependencies and before the build | A failing test stops the workflow, so broken logic never reaches the live site. |
 | D14 | **Comments in English:** JSDoc above every exported function and type, short `//` comments only where the reason is not obvious | Readable for anyone visiting the repo; VS Code shows JSDoc on hover. |
+| D15 | **The solver follows Pascal Pons's published approach** (negamax with alpha-beta, centre-first move order, bitboard, score = 22 minus the winner's disc count), **but the code is written from scratch**, and the README credits his tutorial and benchmark positions | Being open about the source is more professional than presenting a known approach as new. His code is AGPL v3 and this repo is MIT, so no code is copied. What is ours: the TypeScript/browser port, the 32-bit question decided by measurement, the Web Worker, the cross-checking tests and the UI. |
+| D16 | **The bitboard is built twice behind one interface:** BigInt as a readable reference that stays in the tests, and two 32-bit numbers as the fast version. Both must agree on every position; measurements decide which one runs on the site; WebAssembly only if neither is fast enough | JavaScript bitwise operators cut numbers to 32 bits, and the board needs 49. Only the board module knows how bits are stored: the search, move ordering, transposition table and tests see plain numbers (columns, scores, keys), so swapping versions touches one file. |
+| D17 | **How the search is built and checked:** the search copies the position (`clone`) before each move instead of undoing it; a plain negamax comes first, then alpha-beta pruning, which must return exactly the same scores; test positions are a few hand-built ones plus the published benchmark sets | Copying is the version that is hard to get wrong; undo is added only if measurements show copying is a bottleneck. Pruning is the delicate part, so it is checked against a search with no pruning at all. Hand-built positions pinpoint what broke; published positions are the independent proof, and catch a misunderstanding that the code and our own tests would share. |
+| D18 | **The published benchmark files stay out of the repository:** they live in `benchmarks/` (listed in `.gitignore`), and the test that reads them runs only when they are present and is skipped otherwise (e.g. in CI). The README will say where to download them. To be revisited if the author gives permission to include them | The tutorial page only says "© 2019 Pascal Pons", with no licence for the data, so copying the files into a public repo would be redistribution without permission. A single example position quoted from the page, with credit, is used in the normal tests. |
 
 ---
 
@@ -124,6 +128,91 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
   - Paste one command at a time: two commands on one line make Git read the second as file names.
   - Files opened from a Git or extension view are read-only copies; `code <path>` opens the real file.
 
+### 2026-11-10 (continued) — Solver planning: how to fit a 49-bit board
+- Started by checking the state (`git status` clean, last commit `f8bdf37`, 32 tests passing).
+- Worked through the bitboard layout: 7 bits per column (6 cells plus an empty helper row), cell index = column × 7 + row, 49 bits in total. The helper row stops horizontal and diagonal shifts from wrapping a disc from the top of one column into the bottom of the next. Dropping a disc is one addition: the carry rises to the first empty cell.
+- The problem: a JavaScript number holds integers exactly up to 53 bits, but every bitwise operator first cuts its operands to 32 bits. Cells 32–48 (the top of column 4 and columns 5–6) would be silently lost.
+- Compared the options:
+  - **BigInt:** no size limit, code reads like the published solver; slow, because every operation allocates a new value, and it cannot be mixed with ordinary numbers.
+  - **Two 32-bit numbers:** fast; every shift and every drop in column 4 must carry bits across the boundary by hand, and a mistake gives wrong answers silently. Splitting by columns (0–3 and 4–6) would remove the problem for drops but not for shifts.
+  - **WebAssembly:** a real 64-bit type and the best speed, at the cost of another language and toolchain.
+  - **The existing list-of-columns board:** too slow for search, but useful as the referee in tests.
+- **Proposed, not yet decided:** build BigInt first as a readable reference, cross-check it against the game logic on random games, add a basic alpha-beta search, and measure. Then build the two-number version, require it to pass the same tests and agree with BigInt on every position, measure again, and decide. Keep WebAssembly only if measurements demand it. Both versions would expose the same small interface so the search is written once. (Confirmed on 2026-11-15 as D16.)
+- No code changes this session.
+- Lessons:
+  - JavaScript bitwise operators work on 32 bits and fail silently: `(2 ** 32 + 5) | 0` is `5`, `1 << 31` is negative, `1 << 32` is `1`.
+  - To choose "by measurement", you need at least two working versions to measure.
+
+### 2026-11-12 / 2026-11-13 — Questions and a written summary
+- Clarified that the project is written in TypeScript, not Java. Java has a 64-bit integer type, but browsers do not run Java; it would only matter as one possible source language for the WebAssembly option, so it adds no new option.
+- Prepared a three-page Word summary of the project for review: architecture and the reasons behind it, important commands, and topics to understand before presenting the project.
+
+### 2026-11-15 — The solver: concepts, reference bitboard, negamax, alpha-beta, published benchmark
+**Concepts first (no code).** Walked through the whole solver, one idea per step:
+1. Why search and not machine learning: the requirements are absolute ("always wins", "fastest win"), and only a search gives exact, provable answers. Connect Four was solved in 1988 (first player wins); about 4.5 trillion positions, so the search must be smart, not exhaustive.
+2. Negamax: a position's value is worked out from the leaves up; each side picks what is best for itself; one function, flipping the sign at every level.
+3. Leaves are scored by the game rules only (a win by the last disc, or a full board); the player to move at a leaf is always the loser or it is a draw.
+4. The score encodes *when*: 22 minus the winner's disc number (18 for a win with the 4th disc, 1 for the 21st, negative for losses, 0 for a draw). Taking the maximum then picks the fastest win and the longest loss on its own.
+5. Alpha-beta pruning skips branches that cannot change the result; it saves the most when good moves are tried first.
+6. Move ordering: centre columns first (they take part in more lines), plus exact filters (forced blocks, not playing under an opponent's winning cell).
+7. Transposition table: reuse results for positions reached in different orders; a fixed-size table indexed by key modulo size, storing the full key and whether the stored value is exact or only a bound.
+8. Bitboard operations: `canPlay`, `play` (XOR to pass the turn, addition to drop), four-in-a-row with shifts of 1, 7, 6 and 8, and a unique key `current + mask + bottom row`.
+9. Opening book: early positions are the most expensive and never change, so they are solved once offline; depth chosen by measurement.
+10. How it all connects: the UI sends only the move list to a Web Worker and gets a column back; the answer goes through `playMove` like a human move; a request id discards answers that arrive after a new game was started.
+
+**Decisions:** learned that this approach follows Pascal Pons's tutorial and decided to credit it and write our own code (D15); confirmed the two-bitboard plan (D16); decided how the search is built and checked (D17); kept the published benchmark files out of the repo (D18).
+
+**Built** (every step: code with tests, then a deliberate break with a prediction, then a commit):
+- `src/solver/bigintPosition.ts`: the BigInt reference bitboard: `canPlay`, `play` (changes the position in place, unlike the game board, because the search copies explicitly), `isWinningMove`, `key` (returned as a plain number, exact because it fits in 49 bits), `clone`. Commits `4d72b1a`, `c8192e4`, `cbaebef`, `ae5612c`, `9c2ef97`.
+- A cross-check test: 500 seeded random games played on the game board and the bitboard side by side, comparing legal moves and winning moves in about 10,000 positions (`ae5612c`).
+- `src/solver/negamax.ts`: a plain `negamax` (the reference) and `solve`, negamax with alpha-beta pruning (`78af1de`, `816e9ef`, `f5d0e9b`).
+- `src/solver/benchmark.test.ts`: the losing example from the tutorial (`44455554221`, score −15) and all 1,000 End-Easy positions (`Test_L3_R1`) read from `benchmarks/` with `import.meta.glob`; skipped when the file is missing (`91c1596`).
+- 62 tests in 5 files; in CI the file-based test is skipped.
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| Drop without the carry (`mask \|= bottom`) | 2 tests: the column-full boundary (5 vs 6 discs) |
+| No helper row (6 bits per column) | Only the test built for it (top of one column joined to the bottom of the next) |
+| Three in a row counted as a win | 5 tests, because `winningMoves` lists *every* winning column |
+| Key without the current player's discs | 2 tests: swapped owners, and the random uniqueness test |
+| Top row left out of `columnCells` | Only the random cross-check against the game board |
+| `clone` returning `this` | Only the independence test (the "copies exactly" test still passed) |
+| Negamax without the sign flip | Only the loss and draw positions (immediate wins never reach the recursion) |
+| Alpha-beta window not flipped | Only the comparison with plain negamax and the published positions; every hand-built position still passed |
+
+**Found by the published positions:** negamax returned `-0` instead of `0` for some draws. Every level flips the sign, and in JavaScript `-0` is a separate value; our hand-built draw had an even number of moves left, so it never showed. A hand-built draw with five moves left was added first and seen to fail, then the fix: `0 - x` instead of `-x`.
+
+**Measured:**
+- Plain negamax on all 1,000 End-Easy positions: about 7.2 s; with alpha-beta: about 0.33 s (about 20× faster), with identical scores.
+- On a scratch copy: 100 random positions with 14 moves left took about 12 s without pruning and about 0.14 s with it.
+- The game-board cross-check test takes about 0.4 s; the whole suite about 1 s.
+
+**Environment notes:**
+- A new PowerShell terminal refused `npm` (`npm.ps1 cannot be loaded because running scripts is disabled`); the first terminal worked. `npm.cmd test` is a fallback that the policy does not block.
+- The tutorial site failed the certificate check in the Claude app's built-in browser (certificate issued for a different name); it opened normally in the user's own browser.
+- With Vite 8.3 and Vitest 5.1: `import.meta.glob` needs a wildcard (a plain file name fails); the built-in `bench` API did not work; a separate Vitest config file that includes only `*.measure.ts` files does work.
+
+**Proposed, not yet decided — how to measure speed** (to be confirmed at the start of the next session):
+1. What: mean time per position, mean number of explored positions, and positions per second (the same columns as the tutorial's table). Explored positions must stay identical when only the board representation changes; only positions per second should move.
+2. On what: the first 100 positions of End-Easy and Middle-Easy (`Test_L2_R1`, to be downloaded into `benchmarks/`).
+3. How: `*.measure.ts` files run by a separate `npm run measure` with its own small Vitest config, never by `npm test` (timings vary; tests must be fast and repeatable).
+4. Where: on the PC first; in the browser and on a phone later, in the Web Worker stage.
+5. Results: a table in this journal, one row per version.
+
+**Lessons:**
+- A test that only checks that the right thing happens can miss a bug; also check that the wrong thing does *not* happen (the helper row, distinct keys, the clone's independence).
+- Random cross-checks against an independent implementation find cases nobody thought to design.
+- Hand-built positions decided by an immediate win never reach the recursive code; include losses, draws and positions that force a deep search.
+- Hand-built tests check that the code matches our understanding; published data checks the understanding itself, and caught a JavaScript quirk (`-0`) that both shared.
+- Before fixing a bug, add a test that fails because of it, and watch it fail.
+- In VS Code, right-clicking a folder and typing `solver/name.ts` creates a nested `solver` folder; type only the file name.
+- Press `Esc` before pasting a command: leftover text joined it into `npx tscnpm test`, and `npx` tried to download a package by that name.
+- The path bar under the tabs shows which file is open; `bigintPosition.ts` and `bigintPosition.test.ts` are easy to mix up.
+- A method pasted after the class's closing `}` is outside the class; the indentation of the brace shows what it closes.
+- After reverting a deliberate break, `git status` should list only the files that really changed; an extra file means the revert was not exact.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -161,7 +250,11 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - Loads quickly on a phone over 4G.
 
 **Open items noted for later:**
-- Update the repo description and README (both still mention Python).
+- Update the repo description and README (both still mention Python). Credit Pascal Pons's tutorial and benchmark positions (D15), and explain where to download the benchmark files into `benchmarks/` (D18).
+- Consider asking Pascal Pons for permission to include the benchmark files in the repo (D18).
+- The test helpers `play`, `seededRandom` and `playableColumns` are repeated in several test files; move them into one shared file (a separate refactoring commit).
+- When the two-number bitboard arrives, replace the `BigIntPosition` type in `negamax.ts` with a shared position interface (D16).
+- The tutorial's other example, `4455` (score 18, a win with the 4th disc), needs a deep search from move 4; keep it as a test for the speed stage.
 - Design a social preview image for the repo (shown when the link is shared on LinkedIn).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
 - GitHub notes that `ubuntu-latest` is moving to Ubuntu 26. The workflow uses only Node, npm and Vite, so no change is expected.
@@ -174,6 +267,17 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - 32 unit tests, run locally with `npm test` and in GitHub Actions before every build.
 
 **Measured:** the whole test suite runs in about 130 ms. The site bundle is unchanged (the game code is not yet imported by the page).
+
+## Phase 5 — Solver: correctness (2026-11-15)
+
+**What was built:**
+- `src/solver/bigintPosition.ts`: the BigInt reference bitboard (`canPlay`, `play`, `isWinningMove`, `key`, `clone`).
+- `src/solver/negamax.ts`: plain `negamax` (the reference) and `solve` (alpha-beta pruning).
+- Tests: hand-built positions, a cross-check against the game board on random games, `solve` against plain negamax on 200 random late positions, and the 1,000 published End-Easy positions (local only, D18).
+
+**Measured:** both searches give the published score for all 1,000 End-Easy positions; plain negamax takes about 7.2 s for the whole set, alpha-beta about 0.33 s.
+
+**Next:** decide how to measure speed, then the two-number bitboard (D16), then move ordering, a transposition table and an opening book.
 
 ---
 
@@ -197,6 +301,7 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | GitHub Pages | — | Hosts the live site | In use |
 | GitHub Actions extension (VS Code) | 0.32.3 | Validates workflow files in the editor | In use |
 | Vitest | 5.1.0 | Unit tests | In use |
+| Benchmark sets (Pascal Pons) | — | Published positions with exact scores, for tests and measurement | In use, local only (D18) |
 
 ## Commit history
 
@@ -221,6 +326,16 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | `9d8d9f1` | Add game state with turn tracking |
 | `6b42417` | Add playMove with win, draw and game-over handling |
 | `5e5b5a5` | Run unit tests in CI before building |
+| `f8bdf37` | Update journey: game logic complete |
+| `4d72b1a` | Add BigInt bitboard with drop and full-column check |
+| `c8192e4` | Add winning-move detection to BigInt bitboard |
+| `cbaebef` | Add position key to BigInt bitboard |
+| `ae5612c` | Cross-check BigInt bitboard against the game rules |
+| `9c2ef97` | Add clone to BigInt bitboard |
+| `78af1de` | Add plain negamax search with hand-built positions |
+| `816e9ef` | Fix negamax returning -0 instead of 0 for some draws |
+| `91c1596` | Check negamax against published benchmark positions |
+| `f5d0e9b` | Add alpha-beta pruning, checked against plain negamax |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -230,7 +345,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
-3. **Solver:** correctness first (benchmark tests), then speed, then an opening book.
+3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness on end-of-game positions done 2026-11-15 (BigInt bitboard, negamax, alpha-beta, all 1,000 End-Easy positions). Next: how to measure speed (proposal in the 2026-11-15 log), then the two-number bitboard.*
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
 6. **Polish and README.**
