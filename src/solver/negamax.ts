@@ -35,7 +35,8 @@ export function negamax(position: BigIntPosition): number {
       const next = position.clone();
       next.play(column);
       // The result is from the opponent's point of view: flip it for ours.
-      best = Math.max(best, -negamax(next));
+      // (0 - x, not -x: in JavaScript -0 is a separate value, and a draw must be 0.)
+      best = Math.max(best, 0 - negamax(next));
     }
   }
   return best;

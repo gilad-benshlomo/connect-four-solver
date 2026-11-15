@@ -42,4 +42,15 @@ describe('negamax', () => {
       ])),
     ).toBe(0);
   });
+
+    it('scores a draw as exactly 0 when an odd number of moves is left', () => {
+    // The same game one move later: five moves are left. Every level of the
+    // search flips the sign, and in JavaScript -0 is a separate value from 0.
+    expect(
+      negamax(play([
+        0, 1, 4, 5, 6, 6, 6, 6, 0, 3, 3, 4, 5, 1, 1, 4, 5, 1,
+        6, 6, 4, 4, 2, 2, 3, 0, 4, 5, 2, 2, 1, 3, 2, 3, 3, 5, 0,
+      ])),
+    ).toBe(0);
+  });
 });
