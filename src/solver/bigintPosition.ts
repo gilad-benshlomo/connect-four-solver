@@ -105,4 +105,15 @@ export class BigIntPosition {
     // column's height; the bits below it say which player owns each disc.
     return Number(this.current + this.mask + BOTTOM_ROW);
   }
+  /** Returns an independent copy: playing in one never changes the other. */
+  clone(): BigIntPosition {
+    const copy = new BigIntPosition();
+    copy.mask = this.mask;
+    copy.current = this.current;
+    copy.moveCount = this.moveCount;
+    return copy;
+  }
+  
 }
+
+  

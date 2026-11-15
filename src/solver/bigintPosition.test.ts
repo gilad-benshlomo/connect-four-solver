@@ -186,3 +186,24 @@ describe('BigIntPosition against the game board', () => {
     expect(winsFound).toBeGreaterThan(1000);
   });
 });
+
+describe('BigIntPosition.clone', () => {
+  it('copies the position exactly', () => {
+    const copy = play([3, 2, 4]).clone();
+    expect(copy.moves).toBe(3);
+    expect(copy.key()).toBe(play([3, 2, 4]).key());
+  });
+
+  it('keeps the copy and the original independent', () => {
+    const original = play([3, 3]);
+    const copy = original.clone();
+
+    copy.play(2);
+    expect(original.key()).toBe(play([3, 3]).key());
+    expect(original.moves).toBe(2);
+
+    original.play(4);
+    expect(copy.key()).toBe(play([3, 3, 2]).key());
+    expect(copy.moves).toBe(3);
+  });
+});
