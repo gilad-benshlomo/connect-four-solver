@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLUMNS, ROWS } from '../game/board';
+import { COLUMNS, ROWS, createBoard, dropDisc, isLegalMove, winningLine, type Board, type Player } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
 
 /** Builds a position by playing the given columns in order. */
@@ -144,5 +144,45 @@ describe('BigIntPosition', () => {
         keyByBoard.set(board, key);
       }
     }
+  });
+});
+describe('BigIntPosition against the game board', () => {
+  it('agrees on legal and winning moves over many random games', () => {
+    const random = seededRandom(2);
+    let positionsChecked = 0;
+    let winsFound = 0;
+
+    for (let game = 0; game < 500; game++) {
+      const position = new BigIntPosition();
+      let board: Board = createBoard();
+      let player: Player = 'X';
+
+      while (true) {
+        // Ask both boards the same questions about every column.
+        for (let column = 0; column < COLUMNS; column++) {
+          const legal = isLegalMove(board, column);
+          expect(position.canPlay(column)).toBe(legal);
+          if (legal) {
+            const wins = winningLine(dropDisc(board, column, player), column) !== null;
+            expect(position.isWinningMove(column)).toBe(wins);
+            if (wins) winsFound++;
+          }
+        }
+        positionsChecked++;
+
+        const choices = playableColumns(position);
+        if (choices.length === 0) break; // the board is full
+        const column = choices[Math.floor(random() * choices.length)];
+        const won = position.isWinningMove(column);
+        board = dropDisc(board, column, player);
+        position.play(column);
+        player = player === 'X' ? 'O' : 'X';
+        if (won) break; // the game is over
+      }
+    }
+
+    // Make sure the test really covered a lot of positions and wins.
+    expect(positionsChecked).toBeGreaterThan(5000);
+    expect(winsFound).toBeGreaterThan(1000);
   });
 });
