@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "measure": "vitest run --config vitest.measure.config.ts"
+
   },
   "devDependencies": {
     "typescript": "~7.0.2",
