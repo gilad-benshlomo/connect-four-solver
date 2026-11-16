@@ -4,6 +4,22 @@ import type { BigIntPosition } from './bigintPosition';
 /** Number of cells on the board: the most moves a game can last. */
 const CELLS = COLUMNS * ROWS;
 
+/** What a search found, and how much work it took. */
+export type SearchResult = {
+  /** The exact score, on the same scale as `negamax` and `solve`. */
+  score: number;
+  /** How many positions the search visited, counting the one it started from. */
+  explored: number;
+};
+
+/**
+ * State shared by every level of one search. A new one is made for each
+ * search, so nothing carries over from one search to the next.
+ */
+type SearchContext = {
+  explored: number;
+};
+
 /** Returns the score for winning with the next disc, from the number of moves played. */
 function immediateWinScore(moves: number): number {
   // Same as 22 minus the winner's disc number, worked out from the moves.
@@ -34,6 +50,22 @@ function canWinNow(position: BigIntPosition): boolean {
  * Must not be called on a position that is already won.
  */
 export function negamax(position: BigIntPosition): number {
+  return analyzeNegamax(position).score;
+}
+
+/**
+ * Same search as `negamax`, but also reports how many positions it visited.
+ * Used by tests and measurements.
+ */
+export function analyzeNegamax(position: BigIntPosition): SearchResult {
+  const context: SearchContext = { explored: 0 };
+  const score = plainSearch(position, context);
+  return { score, explored: context.explored };
+}
+
+/** The recursive part of `negamax`. */
+function plainSearch(position: BigIntPosition, context: SearchContext): number {
+  context.explored++;
   if (position.moves === CELLS) {
     return 0; // the board is full and nobody won: a draw
   }
@@ -49,7 +81,7 @@ export function negamax(position: BigIntPosition): number {
       next.play(column);
       // The result is from the opponent's point of view: flip it for ours.
       // (0 - x, not -x: in JavaScript -0 is a separate value, and a draw must be 0.)
-      best = Math.max(best, 0 - negamax(next));
+      best = Math.max(best, 0 - plainSearch(next, context));
     }
   }
   return best;
@@ -61,8 +93,18 @@ export function negamax(position: BigIntPosition): number {
  * Must not be called on a position that is already won.
  */
 export function solve(position: BigIntPosition): number {
+  return analyze(position).score;
+}
+
+/**
+ * Same search as `solve`, but also reports how many positions it visited.
+ * Used by tests and measurements.
+ */
+export function analyze(position: BigIntPosition): SearchResult {
+  const context: SearchContext = { explored: 0 };
   // A window wider than any real score, so the result is always exact.
-  return alphaBeta(position, -CELLS, CELLS);
+  const score = alphaBeta(position, -CELLS, CELLS, context);
+  return { score, explored: context.explored };
 }
 
 /**
@@ -71,7 +113,13 @@ export function solve(position: BigIntPosition): number {
  * move; `beta` is the most the opponent will let them reach. A score inside
  * the window is exact; outside it, the result only tells which side it is on.
  */
-function alphaBeta(position: BigIntPosition, alpha: number, beta: number): number {
+function alphaBeta(
+  position: BigIntPosition,
+  alpha: number,
+  beta: number,
+  context: SearchContext,
+): number {
+  context.explored++;
   if (position.moves === CELLS) {
     return 0;
   }
@@ -85,7 +133,7 @@ function alphaBeta(position: BigIntPosition, alpha: number, beta: number): numbe
       next.play(column);
       // The point of view flips, so the window flips with it.
       // (0 - x, not -x, for the same reason as in negamax.)
-      const score = 0 - alphaBeta(next, 0 - beta, 0 - alpha);
+      const score = 0 - alphaBeta(next, 0 - beta, 0 - alpha, context);
       if (score >= beta) {
         return score; // the opponent will never allow this position
       }

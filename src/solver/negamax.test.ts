@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
-import { negamax, solve } from './negamax';
+import { analyze, analyzeNegamax, negamax, solve } from './negamax';
 
 /** Builds a position by playing the given columns in order. */
 function play(columns: number[]): BigIntPosition {
@@ -132,5 +132,48 @@ describe('solve', () => {
     }
     // Make sure the positions were varied: wins, losses and draws of many sizes.
     expect(scores.size).toBeGreaterThan(5);
+  });
+});
+
+describe('explored positions', () => {
+  it('counts one position when the player to move wins right away', () => {
+    // The search looks at the starting position, finds the win and stops.
+    const position = play([0, 1, 0, 1, 0, 1]);
+    expect(analyzeNegamax(position)).toEqual({ score: 18, explored: 1 });
+    expect(analyze(position)).toEqual({ score: 18, explored: 1 });
+  });
+
+  it('counts the last empty cell and the full board after it', () => {
+    // 41 moves played and the last disc does not win: the search visits this
+    // position, then the full board after the only move left.
+    const position = play([
+      0, 1, 4, 5, 6, 6, 6, 6, 0, 3, 3, 4, 5, 1, 1, 4, 5, 1, 6, 6, 4,
+      4, 2, 2, 3, 0, 4, 5, 2, 2, 1, 3, 2, 3, 3, 5, 0, 0, 0, 1, 2,
+    ]);
+    expect(analyzeNegamax(position)).toEqual({ score: 0, explored: 2 });
+    expect(analyze(position)).toEqual({ score: 0, explored: 2 });
+  });
+
+  it('starts from zero on every search', () => {
+    const position = play(HAND_BUILT[3].moves);
+    const first = analyze(position);
+    expect(first.explored).toBeGreaterThan(2);
+    expect(analyze(position)).toEqual(first);
+    expect(analyzeNegamax(position)).toEqual(analyzeNegamax(position));
+  });
+
+  it('prunes: the same scores as plain negamax, never more positions', () => {
+    let plainTotal = 0;
+    let prunedTotal = 0;
+    for (const position of randomLatePositions(100, 8, 4)) {
+      const plain = analyzeNegamax(position);
+      const pruned = analyze(position);
+      expect(pruned.score).toBe(plain.score);
+      expect(pruned.explored).toBeLessThanOrEqual(plain.explored);
+      plainTotal += plain.explored;
+      prunedTotal += pruned.explored;
+    }
+    // Over many positions, pruning must actually save work.
+    expect(prunedTotal).toBeLessThan(plainTotal);
   });
 });
