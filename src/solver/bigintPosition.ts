@@ -1,4 +1,5 @@
 import { COLUMNS, ROWS } from '../game/board';
+import type { Position } from './position';
 
 // Each column takes ROWS + 1 bits: the extra bit is an always-empty helper row
 // that stops lines from wrapping from the top of one column to the next.
@@ -54,7 +55,7 @@ function hasFour(discs: bigint): boolean {
  * but slow. Cell (column, row) is bit `column * (ROWS + 1) + row`.
  * Only the solver uses it, so `play` changes the position in place for speed.
  */
-export class BigIntPosition {
+export class BigIntPosition implements Position {
   /** All discs on the board, of both players. */
   private mask = 0n;
 

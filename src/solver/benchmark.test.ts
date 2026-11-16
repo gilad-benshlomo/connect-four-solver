@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BigIntPosition } from './bigintPosition';
 import { negamax, solve } from './negamax';
+import { PairPosition } from './pairPosition';
+import type { Position } from './position';
 
 // Benchmark positions and scores published by Pascal Pons with his tutorial
 // "Solving Connect 4: how to build a perfect AI" (blog.gamesolver.org).
@@ -38,9 +40,8 @@ function parseBenchmark(text: string): BenchmarkCase[] {
     });
 }
 
-/** Builds a position by playing the given columns in order. */
-function play(columns: number[]): BigIntPosition {
-  const position = new BigIntPosition();
+/** Plays the given columns in order, on a new BigIntPosition unless another board is given. */
+function play(columns: number[], position: Position = new BigIntPosition()): Position {
   for (const column of columns) {
     position.play(column);
   }
@@ -55,16 +56,22 @@ describe('published scores', () => {
     expect(solve(position)).toBe(-15);
   });
 
-  it.skipIf(endEasy === undefined)(
-    'solve matches all 1000 End-Easy positions (Test_L3_R1)',
-    () => {
-      const cases = parseBenchmark(endEasy ?? '');
-      expect(cases).toHaveLength(1000);
-      for (const { line, moves, score } of cases) {
-        // The line is shown in the report if this position fails.
-        expect(solve(play(moves)), line).toBe(score);
-      }
-    },
-    60_000, // generous: the whole file takes well under a second with pruning
-  );
+  const boards = [
+    { name: 'BigIntPosition', create: () => new BigIntPosition() },
+    { name: 'PairPosition', create: () => new PairPosition() },
+  ];
+  for (const { name, create } of boards) {
+    it.skipIf(endEasy === undefined)(
+      `solve on ${name} matches all 1000 End-Easy positions (Test_L3_R1)`,
+      () => {
+        const cases = parseBenchmark(endEasy ?? '');
+        expect(cases).toHaveLength(1000);
+        for (const { line, moves, score } of cases) {
+          // The line is shown in the report if this position fails.
+          expect(solve(play(moves, create())), line).toBe(score);
+        }
+      },
+      60_000, // generous: the whole file takes well under a second with pruning
+    );
+  }
 });

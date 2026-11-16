@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
 import { analyze, analyzeNegamax, negamax, solve } from './negamax';
+import { PairPosition } from './pairPosition';
+import type { Position } from './position';
 
 /** Builds a position by playing the given columns in order. */
 function play(columns: number[]): BigIntPosition {
@@ -25,7 +27,7 @@ function seededRandom(seed: number): () => number {
 }
 
 /** Returns the columns that still have room. */
-function playableColumns(position: BigIntPosition): number[] {
+function playableColumns(position: Position): number[] {
   const columns: number[] = [];
   for (let column = 0; column < COLUMNS; column++) {
     if (position.canPlay(column)) {
@@ -39,12 +41,18 @@ function playableColumns(position: BigIntPosition): number[] {
  * Returns random positions with `movesLeft` empty cells. Games that end
  * early are thrown away, and so are positions where the player to move can
  * win right away, so that every position makes the search do real work.
+ * The same seed gives the same positions on any board (see `create`).
  */
-function randomLatePositions(count: number, movesLeft: number, seed: number): BigIntPosition[] {
+function randomLatePositions(
+  count: number,
+  movesLeft: number,
+  seed: number,
+  create: () => Position = () => new BigIntPosition(),
+): Position[] {
   const random = seededRandom(seed);
-  const positions: BigIntPosition[] = [];
+  const positions: Position[] = [];
   while (positions.length < count) {
-    const position = new BigIntPosition();
+    const position = create();
     let ended = false;
     while (!ended && position.moves < COLUMNS * ROWS - movesLeft) {
       const choices = playableColumns(position);
@@ -175,5 +183,18 @@ describe('explored positions', () => {
     }
     // Over many positions, pruning must actually save work.
     expect(prunedTotal).toBeLessThan(plainTotal);
+  });
+});
+
+describe('both boards', () => {
+  it('give the same scores and the same explored counts', () => {
+    const references = randomLatePositions(100, 8, 7);
+    const pairs = randomLatePositions(100, 8, 7, () => new PairPosition());
+    for (let i = 0; i < references.length; i++) {
+      // The same seed plays the same games on both boards.
+      expect(pairs[i].key()).toBe(references[i].key());
+      expect(analyze(pairs[i])).toEqual(analyze(references[i]));
+      expect(analyzeNegamax(pairs[i])).toEqual(analyzeNegamax(references[i]));
+    }
   });
 });

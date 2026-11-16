@@ -1,4 +1,5 @@
 import { COLUMNS, ROWS } from '../game/board';
+import type { Position } from './position';
 
 // Same layout as BigIntPosition: each column takes ROWS + 1 bits, the extra
 // bit being an always-empty helper row. Cell (column, row) is bit
@@ -88,7 +89,7 @@ function hasFour(low: number, high: number): boolean {
  * including the keys it returns, and the tests check that on every position.
  * Every value is a plain number, and no method creates temporary objects.
  */
-export class PairPosition {
+export class PairPosition implements Position {
   /** All discs on the board, of both players: columns 0-3. */
   private maskLow = 0;
 

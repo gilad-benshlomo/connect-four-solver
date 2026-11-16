@@ -1,5 +1,5 @@
 import { COLUMNS, ROWS } from '../game/board';
-import type { BigIntPosition } from './bigintPosition';
+import type { Position } from './position';
 
 /** Number of cells on the board: the most moves a game can last. */
 const CELLS = COLUMNS * ROWS;
@@ -27,7 +27,7 @@ function immediateWinScore(moves: number): number {
 }
 
 /** Returns true if the player to move can win with their next disc. */
-function canWinNow(position: BigIntPosition): boolean {
+function canWinNow(position: Position): boolean {
   for (let column = 0; column < COLUMNS; column++) {
     if (position.canPlay(column) && position.isWinningMove(column)) {
       return true;
@@ -49,7 +49,7 @@ function canWinNow(position: BigIntPosition): boolean {
  * reference that `solve` is tested against.
  * Must not be called on a position that is already won.
  */
-export function negamax(position: BigIntPosition): number {
+export function negamax(position: Position): number {
   return analyzeNegamax(position).score;
 }
 
@@ -57,14 +57,14 @@ export function negamax(position: BigIntPosition): number {
  * Same search as `negamax`, but also reports how many positions it visited.
  * Used by tests and measurements.
  */
-export function analyzeNegamax(position: BigIntPosition): SearchResult {
+export function analyzeNegamax(position: Position): SearchResult {
   const context: SearchContext = { explored: 0 };
   const score = plainSearch(position, context);
   return { score, explored: context.explored };
 }
 
 /** The recursive part of `negamax`. */
-function plainSearch(position: BigIntPosition, context: SearchContext): number {
+function plainSearch(position: Position, context: SearchContext): number {
   context.explored++;
   if (position.moves === CELLS) {
     return 0; // the board is full and nobody won: a draw
@@ -92,7 +92,7 @@ function plainSearch(position: BigIntPosition, context: SearchContext): number {
  * change the result (alpha-beta pruning), so it is much faster.
  * Must not be called on a position that is already won.
  */
-export function solve(position: BigIntPosition): number {
+export function solve(position: Position): number {
   return analyze(position).score;
 }
 
@@ -100,7 +100,7 @@ export function solve(position: BigIntPosition): number {
  * Same search as `solve`, but also reports how many positions it visited.
  * Used by tests and measurements.
  */
-export function analyze(position: BigIntPosition): SearchResult {
+export function analyze(position: Position): SearchResult {
   const context: SearchContext = { explored: 0 };
   // A window wider than any real score, so the result is always exact.
   const score = alphaBeta(position, -CELLS, CELLS, context);
@@ -114,7 +114,7 @@ export function analyze(position: BigIntPosition): SearchResult {
  * the window is exact; outside it, the result only tells which side it is on.
  */
 function alphaBeta(
-  position: BigIntPosition,
+  position: Position,
   alpha: number,
   beta: number,
   context: SearchContext,

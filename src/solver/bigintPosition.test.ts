@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS, createBoard, dropDisc, isLegalMove, winningLine, type Board, type Player } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
 import { PairPosition } from './pairPosition';
+import type { Position } from './position';
 
 /** The type of the boards under test. */
-type TestPosition = BigIntPosition | PairPosition;
+type TestPosition = Position;
 
 /** A board implementation: its name in the test report, and how to make an empty one. */
 type Implementation = { name: string; create: () => TestPosition };
