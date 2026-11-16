@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS, createBoard, dropDisc, isLegalMove, winningLine, type Board, type Player } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
+import { PairPosition } from './pairPosition';
 
 /** The type of the boards under test. */
-type TestPosition = BigIntPosition;
+type TestPosition = BigIntPosition | PairPosition;
 
 /** A board implementation: its name in the test report, and how to make an empty one. */
 type Implementation = { name: string; create: () => TestPosition };
@@ -11,6 +12,7 @@ type Implementation = { name: string; create: () => TestPosition };
 /** Every test below runs once for each implementation in this list. */
 const IMPLEMENTATIONS: Implementation[] = [
   { name: 'BigIntPosition', create: () => new BigIntPosition() },
+  { name: 'PairPosition', create: () => new PairPosition() },
 ];
 
 /** Builds a position by playing the given columns in order. */
