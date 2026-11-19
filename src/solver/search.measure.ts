@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BigIntPosition } from './bigintPosition';
 import { analyze, analyzeNegamax, type SearchResult } from './negamax';
+import { PairPosition } from './pairPosition';
+import type { Position } from './position';
 
 // Speed of the search on the benchmark positions published by Pascal Pons
 // (blog.gamesolver.org), kept out of the repository (docs/JOURNEY.md, D18).
@@ -16,7 +18,7 @@ const endEasy = files['../../benchmarks/Test_L3_R1'];
 const RUNS = 3;
 
 /** One benchmark position, ready to search, with its published score. */
-type BenchmarkPosition = { line: string; position: BigIntPosition; score: number };
+type BenchmarkPosition = { line: string; position: Position; score: number };
 
 /** The figures for one search on one set of positions (the median run). */
 type Measurement = {
@@ -27,15 +29,15 @@ type Measurement = {
   positionsPerSecond: number;
 };
 
-/** Parses a benchmark file ("moves score" per line, columns from 1) into positions. */
-function parseBenchmark(text: string): BenchmarkPosition[] {
+/** Parses a benchmark file ("moves score" per line, columns from 1) into positions on the given board. */
+function parseBenchmark(text: string, create: () => Position): BenchmarkPosition[] {
   return text
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '')
     .map((line) => {
       const [sequence, score] = line.split(' ');
-      const position = new BigIntPosition();
+      const position = create();
       for (const digit of sequence) {
         position.play(Number(digit) - 1);
       }
@@ -51,7 +53,7 @@ function parseBenchmark(text: string): BenchmarkPosition[] {
  */
 function measure(
   cases: BenchmarkPosition[],
-  search: (position: BigIntPosition) => SearchResult,
+  search: (position: Position) => SearchResult,
 ): Measurement {
   const runs: { totalMs: number; slowestMs: number; explored: number }[] = [];
   for (let run = 0; run <= RUNS; run++) {
@@ -83,9 +85,10 @@ function measure(
 }
 
 /** Formats one measurement as a row for the table in docs/JOURNEY.md. */
-function tableRow(set: string, search: string, m: Measurement): string {
+function tableRow(set: string, board: string, search: string, m: Measurement): string {
   const cells = [
     set,
+    board,
     search,
     String(m.positions),
     `${m.meanMs.toFixed(3)} ms`,
@@ -96,14 +99,22 @@ function tableRow(set: string, search: string, m: Measurement): string {
   return `| ${cells.join(' | ')} |`;
 }
 
+/** The boards to measure; the explored counts must be the same for both. */
+const BOARDS = [
+  { name: 'BigIntPosition', create: () => new BigIntPosition() },
+  { name: 'PairPosition', create: () => new PairPosition() },
+];
+
 describe.skipIf(endEasy === undefined)('search speed on End-Easy (Test_L3_R1)', () => {
-  const cases = parseBenchmark(endEasy ?? '');
+  for (const { name, create } of BOARDS) {
+    const cases = parseBenchmark(endEasy ?? '', create);
 
-  it('alpha-beta', () => {
-    console.log(tableRow('End-Easy', 'alpha-beta', measure(cases, analyze)));
-  });
+    it(`alpha-beta on ${name}`, () => {
+      console.log(tableRow('End-Easy', name, 'alpha-beta', measure(cases, analyze)));
+    });
 
-  it('plain negamax', () => {
-    console.log(tableRow('End-Easy', 'plain negamax', measure(cases, analyzeNegamax)));
-  });
+    it(`plain negamax on ${name}`, () => {
+      console.log(tableRow('End-Easy', name, 'plain negamax', measure(cases, analyzeNegamax)));
+    });
+  }
 });
