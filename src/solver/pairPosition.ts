@@ -157,6 +157,15 @@ function winningHigh(low: number, high: number, maskHigh: number): number {
   return cells & (BOARD_HIGH ^ maskHigh);
 }
 
+/** Returns how many bits are on in a 32-bit number. */
+function bitCount(bits: number): number {
+  // Adds neighbouring counts in pairs, then fours, then bytes, then all four bytes.
+  bits = bits - ((bits >>> 1) & 0x55555555);
+  bits = (bits & 0x33333333) + ((bits >>> 2) & 0x33333333);
+  bits = (bits + (bits >>> 4)) & 0x0f0f0f0f;
+  return Math.imul(bits, 0x01010101) >>> 24;
+}
+
 /**
  * A Connect Four position stored as bitboards split over two 32-bit numbers.
  *
@@ -260,6 +269,28 @@ export class PairPosition implements Position {
       }
     }
     return columns;
+  }
+
+  /**
+   * Returns how many empty cells would complete four in a row for the player
+   * to move after they drop a disc in the column (see `Position.threatsAfter`).
+   */
+  threatsAfter(column: number): number {
+    let low = this.currentLow;
+    let high = this.currentHigh;
+    let maskLow = this.maskLow;
+    let maskHigh = this.maskHigh;
+    // The new disc goes into the current player's discs and into the mask.
+    if (isLow(column)) {
+      const newDisc = (maskLow + bottomCell(column)) & columnCells(column);
+      low |= newDisc;
+      maskLow |= newDisc;
+    } else {
+      const newDisc = (maskHigh + bottomCell(column)) & columnCells(column);
+      high |= newDisc;
+      maskHigh |= newDisc;
+    }
+    return bitCount(winningLow(low, high, maskLow)) + bitCount(winningHigh(low, high, maskHigh));
   }
 
   /**

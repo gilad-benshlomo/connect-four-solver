@@ -157,6 +157,21 @@ export class BigIntPosition implements Position {
     return columns;
   }
 
+  /**
+   * Returns how many empty cells would complete four in a row for the player
+   * to move after they drop a disc in the column (see `Position.threatsAfter`).
+   */
+  threatsAfter(column: number): number {
+    const newDisc = (this.mask + bottomCell(column)) & columnCells(column);
+    let cells = winningCells(this.current | newDisc, this.mask | newDisc);
+    let count = 0;
+    while (cells !== 0n) {
+      cells &= cells - 1n; // clears the lowest cell
+      count++;
+    }
+    return count;
+  }
+
   /** Returns an independent copy: playing in one never changes the other. */
   clone(): BigIntPosition {
     const copy = new BigIntPosition();

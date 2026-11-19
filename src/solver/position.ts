@@ -33,6 +33,14 @@ export interface Position {
    */
   nonLosingColumns(): number;
 
+  /**
+   * Returns how many empty cells would complete four in a row for the player
+   * to move after they drop a disc in the column, counting cells that cannot
+   * be played yet. Does not change the position. Used to try strong moves first.
+   * Must only be called on a playable column (see `canPlay`).
+   */
+  threatsAfter(column: number): number;
+  
   /** Returns a number that identifies the position; the same for both boards. */
   key(): number;
 
