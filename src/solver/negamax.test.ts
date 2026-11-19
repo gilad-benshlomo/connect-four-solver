@@ -4,6 +4,10 @@ import { BigIntPosition } from './bigintPosition';
 import { COLUMN_ORDER, analyze, analyzeNegamax, negamax, solve } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
+import { TranspositionTable } from './transpositionTable';
+
+/** A small valid table size (a prime just above 2^17), so the tests stay fast. */
+const TABLE_SIZE = 131_101;
 
 /** Builds a position by playing the given columns in order. */
 function play(columns: number[]): BigIntPosition {
@@ -202,5 +206,31 @@ describe('both boards', () => {
 describe('move order', () => {
   it('tries the columns from the centre outwards', () => {
     expect(COLUMN_ORDER).toEqual([3, 2, 4, 1, 5, 0, 6]);
+  });
+});
+
+describe('with a transposition table', () => {
+  it('gives the same scores as without one, whether fresh or reused', () => {
+    const fresh = new TranspositionTable(TABLE_SIZE);
+    const reused = new TranspositionTable(TABLE_SIZE);
+    for (const position of randomLatePositions(300, 14, 11)) {
+      const expected = solve(position);
+      fresh.clear();
+      expect(solve(position, fresh)).toBe(expected);
+      // A table full of entries from other positions must never change a score.
+      expect(solve(position, reused)).toBe(expected);
+    }
+  });
+
+  it('explores fewer positions than without one', () => {
+    const table = new TranspositionTable(TABLE_SIZE);
+    let without = 0;
+    let withTable = 0;
+    for (const position of randomLatePositions(100, 14, 12)) {
+      table.clear();
+      without += analyze(position).explored;
+      withTable += analyze(position, table).explored;
+    }
+    expect(withTable).toBeLessThan(without);
   });
 });

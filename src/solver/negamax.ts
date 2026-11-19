@@ -1,5 +1,6 @@
 import { COLUMNS, ROWS } from '../game/board';
 import type { Position } from './position';
+import type { TranspositionTable } from './transpositionTable';
 
 /** Number of cells on the board: the most moves a game can last. */
 const CELLS = COLUMNS * ROWS;
@@ -24,16 +25,30 @@ export type SearchResult = {
 
 /**
  * State shared by every level of one search. A new one is made for each
- * search, so nothing carries over from one search to the next.
+ * search; only the table, which belongs to the caller, can carry over.
  */
 type SearchContext = {
   explored: number;
+  table: TranspositionTable | undefined;
 };
 
 /** Returns the score for winning with the next disc, from the number of moves played. */
 function immediateWinScore(moves: number): number {
   // Same as 22 minus the winner's disc number, worked out from the moves.
   return Math.floor((CELLS + 1 - moves) / 2);
+}
+
+/**
+ * Turns a score into a value the table can store: scores run from -CELLS to
+ * CELLS at the very most, and the table needs values from 1 up (0 is empty).
+ */
+function toStored(score: number): number {
+  return score + CELLS + 1;
+}
+
+/** Turns a value read from the table back into a score (see `toStored`). */
+function fromStored(value: number): number {
+  return value - CELLS - 1;
 }
 
 /** Returns true if the player to move can win with their next disc. */
@@ -68,7 +83,7 @@ export function negamax(position: Position): number {
  * Used by tests and measurements.
  */
 export function analyzeNegamax(position: Position): SearchResult {
-  const context: SearchContext = { explored: 0 };
+  const context: SearchContext = { explored: 0, table: undefined };
   const score = plainSearch(position, context);
   return { score, explored: context.explored };
 }
@@ -100,18 +115,20 @@ function plainSearch(position: Position, context: SearchContext): number {
 /**
  * Returns the same exact score as `negamax`, but skips the moves that cannot
  * change the result (alpha-beta pruning), so it is much faster.
+ * With a table, it also reuses what it worked out about positions it has seen
+ * before, in this search or in earlier ones that used the same table.
  * Must not be called on a position that is already won.
  */
-export function solve(position: Position): number {
-  return analyze(position).score;
+export function solve(position: Position, table?: TranspositionTable): number {
+  return analyze(position, table).score;
 }
 
 /**
  * Same search as `solve`, but also reports how many positions it visited.
  * Used by tests and measurements.
  */
-export function analyze(position: Position): SearchResult {
-  const context: SearchContext = { explored: 0 };
+export function analyze(position: Position, table?: TranspositionTable): SearchResult {
+  const context: SearchContext = { explored: 0, table };
   // A window wider than any real score, so the result is always exact.
   const score = alphaBeta(position, -CELLS, CELLS, context);
   return { score, explored: context.explored };
@@ -139,7 +156,16 @@ function alphaBeta(
 
   // There is no win with the next disc, so the best possible result is a win
   // with the disc after it. Asking for more than that is pointless: lower beta.
-  const bestPossible = immediateWinScore(position.moves + 2);
+  let bestPossible = immediateWinScore(position.moves + 2);
+  const table = context.table;
+  const key = table === undefined ? 0 : position.key();
+  if (table !== undefined) {
+    const stored = table.get(key);
+    if (stored !== 0) {
+      // An earlier visit found that this position scores at most this much.
+      bestPossible = Math.min(bestPossible, fromStored(stored));
+    }
+  }
   if (beta > bestPossible) {
     beta = bestPossible;
     if (alpha >= beta) {
@@ -162,5 +188,7 @@ function alphaBeta(
       }
     }
   }
+  // No move reached beta, so this position scores at most alpha: remember it.
+  table?.put(key, toStored(alpha));
   return alpha;
 }

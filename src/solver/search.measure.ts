@@ -3,6 +3,7 @@ import { BigIntPosition } from './bigintPosition';
 import { analyze, type SearchResult } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
+import { TranspositionTable } from './transpositionTable';
 
 // Speed of the search on the benchmark positions published by Pascal Pons
 // (blog.gamesolver.org), kept out of the repository (docs/JOURNEY.md, D18).
@@ -15,14 +16,12 @@ const files = import.meta.glob<string>('../../benchmarks/Test_*', {
 const endEasy = files['../../benchmarks/Test_L3_R1'];
 const middleEasy = files['../../benchmarks/Test_L2_R1'];
 
-/**
- * How many Middle-Easy positions to measure, from the start of the file. Some
- * of them still take seconds with the current search, so not all 1000 yet.
- */
-const MIDDLE_EASY_COUNT = 100;
 
 /** How many timed runs to take the median of, after one warm-up run. */
 const RUNS = 3;
+
+/** Table size for the measurements: a prime just above 2^20, about 5 MB. */
+const TABLE_SIZE = 1_048_583;
 
 /** One benchmark position, ready to search, with its published score. */
 type BenchmarkPosition = { line: string; position: Position; score: number };
@@ -52,17 +51,26 @@ function parseBenchmark(text: string, create: () => Position): BenchmarkPosition
     });
 }
 
+/** How to run a measurement; every field has a default. */
+type MeasureOptions = {
+  /** Timed runs to take the median of (default `RUNS`). */
+  runs?: number;
+  /** Whether to do one untimed warm-up run first (default true). */
+  warmUp?: boolean;
+  /** Called before each position, outside the timing (e.g. to clear a table). */
+  beforeEach?: () => void;
+};
+
 /**
  * Times `search` on every position: by default one warm-up run that is thrown
- * away (so the JavaScript engine has optimised the code), then `timedRuns`
- * timed runs. Returns the figures of the run with the median total time.
- * Also checks every score, so a broken search can never produce a measurement.
+ * away (so the JavaScript engine has optimised the code), then `RUNS` timed
+ * runs. Returns the figures of the run with the median total time. Also
+ * checks every score, so a broken search can never produce a measurement.
  */
 function measure(
   cases: BenchmarkPosition[],
   search: (position: Position) => SearchResult,
-  timedRuns = RUNS,
-  warmUp = true,
+  { runs: timedRuns = RUNS, warmUp = true, beforeEach }: MeasureOptions = {},
 ): Measurement {
   const runs: { totalMs: number; slowestMs: number; explored: number }[] = [];
   for (let run = warmUp ? 0 : 1; run <= timedRuns; run++) {
@@ -70,6 +78,7 @@ function measure(
     let slowestMs = 0;
     let explored = 0;
     for (const { line, position, score } of cases) {
+      beforeEach?.();
       const start = performance.now();
       const result = search(position);
       const ms = performance.now() - start;
@@ -116,6 +125,8 @@ const BOARDS = [
 
 // Plain negamax was measured once on End-Easy (docs/JOURNEY.md); it does not
 // change with the speed-ups, so only the alpha-beta search is measured here.
+// With a table, the table is cleared before each position, so every position
+// is measured on its own and the counts are the same on every run.
 
 describe.skipIf(endEasy === undefined)('search speed on End-Easy (Test_L3_R1)', () => {
   for (const { name, create } of BOARDS) {
@@ -124,14 +135,43 @@ describe.skipIf(endEasy === undefined)('search speed on End-Easy (Test_L3_R1)', 
       console.log(tableRow('End-Easy', name, 'alpha-beta', measure(cases, analyze)));
     });
   }
+
+  it('alpha-beta with a table on PairPosition', () => {
+    const cases = parseBenchmark(endEasy ?? '', () => new PairPosition());
+    const table = new TranspositionTable(TABLE_SIZE);
+    const result = measure(cases, (position) => analyze(position, table), {
+      beforeEach: () => table.clear(),
+    });
+    console.log(tableRow('End-Easy', 'PairPosition', 'alpha-beta + table', result));
+  });
 });
 
 describe.skipIf(middleEasy === undefined)('search speed on Middle-Easy (Test_L2_R1)', () => {
-  // Only the fast board: the BigInt one would take minutes here. One run with
-  // no warm-up: a run takes tens of seconds, so warming up would change
-  // nothing measurable and only double the wait.
-  it('alpha-beta on PairPosition', () => {
-    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, MIDDLE_EASY_COUNT);
-    console.log(tableRow('Middle-Easy', 'PairPosition', 'alpha-beta', measure(cases, analyze, 1, false)));
+  // Only the fast board from here on: the BigInt one adds nothing new.
+  it('alpha-beta on PairPosition, first 100 positions', () => {
+    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, 100);
+    console.log(tableRow('Middle-Easy (first 100)', 'PairPosition', 'alpha-beta', measure(cases, analyze)));
+  });
+
+  it('alpha-beta with a table on PairPosition, first 100 positions', () => {
+    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, 100);
+    const table = new TranspositionTable(TABLE_SIZE);
+    const result = measure(cases, (position) => analyze(position, table), {
+      beforeEach: () => table.clear(),
+    });
+    console.log(tableRow('Middle-Easy (first 100)', 'PairPosition', 'alpha-beta + table', result));
+  });
+
+  it('alpha-beta with a table on PairPosition, all 1000 positions', () => {
+    // One run with no warm-up: a run takes many seconds, so warming up would
+    // change nothing measurable and only double the wait.
+    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition());
+    const table = new TranspositionTable(TABLE_SIZE);
+    const result = measure(cases, (position) => analyze(position, table), {
+      runs: 1,
+      warmUp: false,
+      beforeEach: () => table.clear(),
+    });
+    console.log(tableRow('Middle-Easy', 'PairPosition', 'alpha-beta + table', result));
   });
 });

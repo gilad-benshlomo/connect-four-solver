@@ -3,6 +3,7 @@ import { BigIntPosition } from './bigintPosition';
 import { negamax, solve } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
+import { TranspositionTable } from './transpositionTable';
 
 // Benchmark positions and scores published by Pascal Pons with his tutorial
 // "Solving Connect 4: how to build a perfect AI" (blog.gamesolver.org).
@@ -74,4 +75,17 @@ describe('published scores', () => {
       60_000, // generous: the whole file takes well under a second with pruning
     );
   }
+
+  it.skipIf(endEasy === undefined)(
+    'solve with one table reused for all 1000 End-Easy positions matches them all',
+    () => {
+      // A small valid size (a prime just above 2^17); one table for every
+      // position, as in a real game, so old entries are always around.
+      const table = new TranspositionTable(131_101);
+      for (const { line, moves, score } of parseBenchmark(endEasy ?? '')) {
+        expect(solve(play(moves, new PairPosition()), table), line).toBe(score);
+      }
+    },
+    60_000,
+  );
 });
