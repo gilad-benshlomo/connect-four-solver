@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
-import { COLUMN_ORDER, analyze, analyzeNegamax, negamax, solve } from './negamax';
+import {
+  COLUMN_ORDER,
+  analyze,
+  analyzeFullWindow,
+  analyzeNegamax,
+  negamax,
+  solve,
+  solveFullWindow,
+} from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 import { TranspositionTable } from './transpositionTable';
@@ -132,6 +140,7 @@ describe('solve', () => {
   for (const { name, moves, score } of HAND_BUILT) {
     it(name, () => {
       expect(solve(play(moves))).toBe(score);
+      expect(solveFullWindow(play(moves))).toBe(score);
     });
   }
 
@@ -140,6 +149,7 @@ describe('solve', () => {
     for (const position of randomLatePositions(200, 12, 3)) {
       const expected = negamax(position);
       expect(solve(position)).toBe(expected);
+      expect(solveFullWindow(position)).toBe(expected);
       scores.add(expected);
     }
     // Make sure the positions were varied: wins, losses and draws of many sizes.
@@ -152,6 +162,7 @@ describe('explored positions', () => {
     // The search looks at the starting position, finds the win and stops.
     const position = play([0, 1, 0, 1, 0, 1]);
     expect(analyzeNegamax(position)).toEqual({ score: 18, explored: 1 });
+    expect(analyzeFullWindow(position)).toEqual({ score: 18, explored: 1 });
     expect(analyze(position)).toEqual({ score: 18, explored: 1 });
   });
 
@@ -163,7 +174,11 @@ describe('explored positions', () => {
       4, 2, 2, 3, 0, 4, 5, 2, 2, 1, 3, 2, 3, 3, 5, 0, 0, 0, 1, 2,
     ]);
     expect(analyzeNegamax(position)).toEqual({ score: 0, explored: 2 });
-    expect(analyze(position)).toEqual({ score: 0, explored: 2 });
+    expect(analyzeFullWindow(position)).toEqual({ score: 0, explored: 2 });
+    // The narrow-window search knows from the start that the score is 0 or 1.
+    // It asks one question, "is it above 0?", and the ceiling answers it at
+    // the first position, before any move: a win needs at least two more discs.
+    expect(analyze(position)).toEqual({ score: 0, explored: 1 });
   });
 
   it('starts from zero on every search', () => {
@@ -175,11 +190,14 @@ describe('explored positions', () => {
   });
 
   it('prunes: the same scores as plain negamax, never more positions', () => {
+    // One search over a full window only skips positions, so it can never
+    // visit more than plain negamax. (The narrow-window search asks several
+    // questions, so in small positions it can visit more in total.)
     let plainTotal = 0;
     let prunedTotal = 0;
     for (const position of randomLatePositions(100, 8, 4)) {
       const plain = analyzeNegamax(position);
-      const pruned = analyze(position);
+      const pruned = analyzeFullWindow(position);
       expect(pruned.score).toBe(plain.score);
       expect(pruned.explored).toBeLessThanOrEqual(plain.explored);
       plainTotal += plain.explored;

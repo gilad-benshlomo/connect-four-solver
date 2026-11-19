@@ -113,8 +113,9 @@ function plainSearch(position: Position, context: SearchContext): number {
 }
 
 /**
- * Returns the same exact score as `negamax`, but skips the moves that cannot
- * change the result (alpha-beta pruning), so it is much faster.
+ * Returns the same exact score as `negamax`, much faster. This is the search
+ * the game uses: alpha-beta pruning, asked a series of yes-or-no questions
+ * ("is the score above x?") that narrow down the exact score.
  * With a table, it also reuses what it worked out about positions it has seen
  * before, in this search or in earlier ones that used the same table.
  * Must not be called on a position that is already won.
@@ -124,10 +125,52 @@ export function solve(position: Position, table?: TranspositionTable): number {
 }
 
 /**
- * Same search as `solve`, but also reports how many positions it visited.
- * Used by tests and measurements.
+ * Same search as `solve`, but also reports how many positions it visited,
+ * counted over all the questions. Used by tests and measurements.
  */
 export function analyze(position: Position, table?: TranspositionTable): SearchResult {
+  const context: SearchContext = { explored: 0, table };
+  // The score lies between losing to the opponent's next disc and winning
+  // with our own next disc.
+  let min = 0 - immediateWinScore(position.moves + 1);
+  let max = immediateWinScore(position.moves);
+  while (min < max) {
+    // Ask "is the score above med?" with a window of width one. Such a narrow
+    // window cuts far more than a wide one, and the table carries what was
+    // learned from one question to the next.
+    let med = min + Math.floor((max - min) / 2);
+    // Ask closer to the ends of the range first: fast wins and fast losses
+    // are cheap to prove or rule out.
+    if (med <= 0 && Math.floor(min / 2) < med) {
+      med = Math.floor(min / 2);
+    } else if (med >= 0 && Math.floor(max / 2) > med) {
+      med = Math.floor(max / 2);
+    }
+    const score = alphaBeta(position, med, med + 1, context);
+    if (score <= med) {
+      max = score; // the answer was no: the score is at most this
+    } else {
+      min = score; // the answer was yes: the score is at least this
+    }
+  }
+  return { score: min, explored: context.explored };
+}
+
+/**
+ * Returns the same exact score with one alpha-beta search over a window wide
+ * enough for any score. Slower than `solve`; kept as a second reference for
+ * the tests and the measurements.
+ * Must not be called on a position that is already won.
+ */
+export function solveFullWindow(position: Position, table?: TranspositionTable): number {
+  return analyzeFullWindow(position, table).score;
+}
+
+/**
+ * Same search as `solveFullWindow`, but also reports how many positions it
+ * visited. Used by tests and measurements.
+ */
+export function analyzeFullWindow(position: Position, table?: TranspositionTable): SearchResult {
   const context: SearchContext = { explored: 0, table };
   // A window wider than any real score, so the result is always exact.
   const score = alphaBeta(position, -CELLS, CELLS, context);

@@ -17,6 +17,7 @@ const files = import.meta.glob<string>('../../benchmarks/Test_*', {
   eager: true,
 });
 const endEasy = files['../../benchmarks/Test_L3_R1'];
+const middleEasy = files['../../benchmarks/Test_L2_R1'];
 
 /** One benchmark line: the original text, the moves, and the published score. */
 type BenchmarkCase = { line: string; moves: number[]; score: number };
@@ -83,6 +84,19 @@ describe('published scores', () => {
       // position, as in a real game, so old entries are always around.
       const table = new TranspositionTable(131_101);
       for (const { line, moves, score } of parseBenchmark(endEasy ?? '')) {
+        expect(solve(play(moves, new PairPosition()), table), line).toBe(score);
+      }
+    },
+    60_000,
+  );
+
+  it.skipIf(middleEasy === undefined)(
+    'solve with one table reused for all 1000 Middle-Easy positions matches them all',
+    () => {
+      const table = new TranspositionTable(131_101);
+      const cases = parseBenchmark(middleEasy ?? '');
+      expect(cases).toHaveLength(1000);
+      for (const { line, moves, score } of cases) {
         expect(solve(play(moves, new PairPosition()), table), line).toBe(score);
       }
     },

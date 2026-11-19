@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BigIntPosition } from './bigintPosition';
-import { analyze, type SearchResult } from './negamax';
+import { analyze, analyzeFullWindow, type SearchResult } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 import { TranspositionTable } from './transpositionTable';
@@ -15,6 +14,7 @@ const files = import.meta.glob<string>('../../benchmarks/Test_*', {
 });
 const endEasy = files['../../benchmarks/Test_L3_R1'];
 const middleEasy = files['../../benchmarks/Test_L2_R1'];
+const beginEasy = files['../../benchmarks/Test_L1_R1'];
 
 
 /** How many timed runs to take the median of, after one warm-up run. */
@@ -117,61 +117,63 @@ function tableRow(set: string, board: string, search: string, m: Measurement): s
   return `| ${cells.join(' | ')} |`;
 }
 
-/** The boards to measure; the explored counts must be the same for both. */
-const BOARDS = [
-  { name: 'BigIntPosition', create: () => new BigIntPosition() },
-  { name: 'PairPosition', create: () => new PairPosition() },
+/** A search that uses a table: the full-window one or the narrow-window one. */
+type TableSearch = (position: Position, table: TranspositionTable) => SearchResult;
+
+/** The two searches compared from here on, both with a table. */
+const SEARCHES: { name: string; search: TableSearch }[] = [
+  { name: 'full window + table', search: analyzeFullWindow },
+  { name: 'null window + table', search: analyze },
 ];
 
-// Plain negamax was measured once on End-Easy (docs/JOURNEY.md); it does not
-// change with the speed-ups, so only the alpha-beta search is measured here.
-// With a table, the table is cleared before each position, so every position
-// is measured on its own and the counts are the same on every run.
+/**
+ * Measures `search` on the fast board, with a table that is cleared before
+ * each position (outside the timing), so every position is measured on its
+ * own and the counts are the same on every run.
+ */
+function measureWithTable(cases: BenchmarkPosition[], search: TableSearch, options: MeasureOptions = {}): Measurement {
+  const table = new TranspositionTable(TABLE_SIZE);
+  return measure(cases, (position) => search(position, table), {
+    ...options,
+    beforeEach: () => table.clear(),
+  });
+}
+
+/** Parses a benchmark file into positions on the fast board. */
+function fastCases(text: string | undefined): BenchmarkPosition[] {
+  return parseBenchmark(text ?? '', () => new PairPosition());
+}
+
+// Earlier rows (the BigInt board, plain negamax, no table) are kept in
+// docs/JOURNEY.md; they do not change any more, so they are not re-measured.
 
 describe.skipIf(endEasy === undefined)('search speed on End-Easy (Test_L3_R1)', () => {
-  for (const { name, create } of BOARDS) {
-    it(`alpha-beta on ${name}`, () => {
-      const cases = parseBenchmark(endEasy ?? '', create);
-      console.log(tableRow('End-Easy', name, 'alpha-beta', measure(cases, analyze)));
+  for (const { name, search } of SEARCHES) {
+    it(name, () => {
+      console.log(tableRow('End-Easy', 'PairPosition', name, measureWithTable(fastCases(endEasy), search)));
     });
   }
-
-  it('alpha-beta with a table on PairPosition', () => {
-    const cases = parseBenchmark(endEasy ?? '', () => new PairPosition());
-    const table = new TranspositionTable(TABLE_SIZE);
-    const result = measure(cases, (position) => analyze(position, table), {
-      beforeEach: () => table.clear(),
-    });
-    console.log(tableRow('End-Easy', 'PairPosition', 'alpha-beta + table', result));
-  });
 });
 
 describe.skipIf(middleEasy === undefined)('search speed on Middle-Easy (Test_L2_R1)', () => {
-  // Only the fast board from here on: the BigInt one adds nothing new.
-  it('alpha-beta on PairPosition, first 100 positions', () => {
-    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, 100);
-    console.log(tableRow('Middle-Easy (first 100)', 'PairPosition', 'alpha-beta', measure(cases, analyze)));
-  });
-
-  it('alpha-beta with a table on PairPosition, first 100 positions', () => {
-    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, 100);
-    const table = new TranspositionTable(TABLE_SIZE);
-    const result = measure(cases, (position) => analyze(position, table), {
-      beforeEach: () => table.clear(),
+  for (const { name, search } of SEARCHES) {
+    it(`${name}, first 100 positions`, () => {
+      const cases = fastCases(middleEasy).slice(0, 100);
+      console.log(tableRow('Middle-Easy (first 100)', 'PairPosition', name, measureWithTable(cases, search)));
     });
-    console.log(tableRow('Middle-Easy (first 100)', 'PairPosition', 'alpha-beta + table', result));
-  });
+  }
 
-  it('alpha-beta with a table on PairPosition, all 1000 positions', () => {
+  it('null window + table, all 1000 positions', () => {
+    const result = measureWithTable(fastCases(middleEasy), analyze);
+    console.log(tableRow('Middle-Easy', 'PairPosition', 'null window + table', result));
+  });
+});
+
+describe.skipIf(beginEasy === undefined)('search speed on Begin-Easy (Test_L1_R1)', () => {
+  it('null window + table, all 1000 positions', () => {
     // One run with no warm-up: a run takes many seconds, so warming up would
     // change nothing measurable and only double the wait.
-    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition());
-    const table = new TranspositionTable(TABLE_SIZE);
-    const result = measure(cases, (position) => analyze(position, table), {
-      runs: 1,
-      warmUp: false,
-      beforeEach: () => table.clear(),
-    });
-    console.log(tableRow('Middle-Easy', 'PairPosition', 'alpha-beta + table', result));
+    const result = measureWithTable(fastCases(beginEasy), analyze, { runs: 1, warmUp: false });
+    console.log(tableRow('Begin-Easy', 'PairPosition', 'null window + table', result));
   });
 });
