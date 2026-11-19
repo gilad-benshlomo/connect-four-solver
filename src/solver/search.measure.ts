@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BigIntPosition } from './bigintPosition';
-import { analyze, analyzeNegamax, type SearchResult } from './negamax';
+import { analyze, type SearchResult } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 
@@ -13,6 +13,13 @@ const files = import.meta.glob<string>('../../benchmarks/Test_*', {
   eager: true,
 });
 const endEasy = files['../../benchmarks/Test_L3_R1'];
+const middleEasy = files['../../benchmarks/Test_L2_R1'];
+
+/**
+ * How many Middle-Easy positions to measure, from the start of the file. Some
+ * of them still take seconds with the current search, so not all 1000 yet.
+ */
+const MIDDLE_EASY_COUNT = 100;
 
 /** How many timed runs to take the median of, after one warm-up run. */
 const RUNS = 3;
@@ -46,17 +53,19 @@ function parseBenchmark(text: string, create: () => Position): BenchmarkPosition
 }
 
 /**
- * Times `search` on every position: one warm-up run that is thrown away (so
- * the JavaScript engine has optimised the code), then `RUNS` timed runs.
- * Returns the figures of the run with the median total time. Also checks
- * every score, so a broken search can never produce a measurement.
+ * Times `search` on every position: by default one warm-up run that is thrown
+ * away (so the JavaScript engine has optimised the code), then `timedRuns`
+ * timed runs. Returns the figures of the run with the median total time.
+ * Also checks every score, so a broken search can never produce a measurement.
  */
 function measure(
   cases: BenchmarkPosition[],
   search: (position: Position) => SearchResult,
+  timedRuns = RUNS,
+  warmUp = true,
 ): Measurement {
   const runs: { totalMs: number; slowestMs: number; explored: number }[] = [];
-  for (let run = 0; run <= RUNS; run++) {
+  for (let run = warmUp ? 0 : 1; run <= timedRuns; run++) {
     let totalMs = 0;
     let slowestMs = 0;
     let explored = 0;
@@ -105,16 +114,24 @@ const BOARDS = [
   { name: 'PairPosition', create: () => new PairPosition() },
 ];
 
+// Plain negamax was measured once on End-Easy (docs/JOURNEY.md); it does not
+// change with the speed-ups, so only the alpha-beta search is measured here.
+
 describe.skipIf(endEasy === undefined)('search speed on End-Easy (Test_L3_R1)', () => {
   for (const { name, create } of BOARDS) {
-    const cases = parseBenchmark(endEasy ?? '', create);
-
     it(`alpha-beta on ${name}`, () => {
+      const cases = parseBenchmark(endEasy ?? '', create);
       console.log(tableRow('End-Easy', name, 'alpha-beta', measure(cases, analyze)));
     });
-
-    it(`plain negamax on ${name}`, () => {
-      console.log(tableRow('End-Easy', name, 'plain negamax', measure(cases, analyzeNegamax)));
-    });
   }
+});
+
+describe.skipIf(middleEasy === undefined)('search speed on Middle-Easy (Test_L2_R1)', () => {
+  // Only the fast board: the BigInt one would take minutes here. One run with
+  // no warm-up: a run takes tens of seconds, so warming up would change
+  // nothing measurable and only double the wait.
+  it('alpha-beta on PairPosition', () => {
+    const cases = parseBenchmark(middleEasy ?? '', () => new PairPosition()).slice(0, MIDDLE_EASY_COUNT);
+    console.log(tableRow('Middle-Easy', 'PairPosition', 'alpha-beta', measure(cases, analyze, 1, false)));
+  });
 });
