@@ -127,6 +127,16 @@ function alphaBeta(
     return immediateWinScore(position.moves);
   }
 
+  // There is no win with the next disc, so the best possible result is a win
+  // with the disc after it. Asking for more than that is pointless: lower beta.
+  const bestPossible = immediateWinScore(position.moves + 2);
+  if (beta > bestPossible) {
+    beta = bestPossible;
+    if (alpha >= beta) {
+      return beta; // the window is empty: nothing here can beat alpha
+    }
+  }
+
   for (let column = 0; column < COLUMNS; column++) {
     if (position.canPlay(column)) {
       const next = position.clone();
