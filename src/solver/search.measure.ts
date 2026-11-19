@@ -15,6 +15,8 @@ const files = import.meta.glob<string>('../../benchmarks/Test_*', {
 const endEasy = files['../../benchmarks/Test_L3_R1'];
 const middleEasy = files['../../benchmarks/Test_L2_R1'];
 const beginEasy = files['../../benchmarks/Test_L1_R1'];
+const beginMedium = files['../../benchmarks/Test_L1_R2'];
+const beginHard = files['../../benchmarks/Test_L1_R3'];
 
 
 /** How many timed runs to take the median of, after one warm-up run. */
@@ -175,5 +177,28 @@ describe.skipIf(beginEasy === undefined)('search speed on Begin-Easy (Test_L1_R1
     // change nothing measurable and only double the wait.
     const result = measureWithTable(fastCases(beginEasy), analyze, { runs: 1, warmUp: false });
     console.log(tableRow('Begin-Easy', 'PairPosition', 'null window + table', result));
+  });
+});
+
+// The opening sets take seconds per position, so these measure only a part of
+// each, with one run and no warm-up, like Begin-Easy above.
+
+describe.skipIf(beginMedium === undefined)('search speed on Begin-Medium (Test_L1_R2)', () => {
+  it('null window + table, first 100 positions', () => {
+    const cases = fastCases(beginMedium).slice(0, 100);
+    const result = measureWithTable(cases, analyze, { runs: 1, warmUp: false });
+    console.log(tableRow('Begin-Medium (first 100)', 'PairPosition', 'null window + table', result));
+  });
+});
+
+describe.skipIf(beginHard === undefined)('search speed on Begin-Hard (Test_L1_R3)', () => {
+  it('null window + table, first 20 positions after 8 moves', () => {
+    // Positions after 8 moves are where an opening book of depth 8 would end;
+    // the earlier ones are left to the book.
+    const cases = fastCases(beginHard)
+      .filter(({ position }) => position.moves === 8)
+      .slice(0, 20);
+    const result = measureWithTable(cases, analyze, { runs: 1, warmUp: false });
+    console.log(tableRow('Begin-Hard (first 20 after 8 moves)', 'PairPosition', 'null window + table', result));
   });
 });
