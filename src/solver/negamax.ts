@@ -4,6 +4,16 @@ import type { Position } from './position';
 /** Number of cells on the board: the most moves a game can last. */
 const CELLS = COLUMNS * ROWS;
 
+/**
+ * The order in which alpha-beta tries the columns: from the centre outwards
+ * (3, 2, 4, 1, 5, 0, 6). Central columns take part in more lines, so good
+ * moves tend to come first, and then more of the other moves can be skipped.
+ */
+export const COLUMN_ORDER = Array.from({ length: COLUMNS }, (_, i) => {
+  const centre = Math.floor(COLUMNS / 2);
+  return i % 2 === 1 ? centre - (i + 1) / 2 : centre + i / 2;
+});
+
 /** What a search found, and how much work it took. */
 export type SearchResult = {
   /** The exact score, on the same scale as `negamax` and `solve`. */
@@ -137,7 +147,7 @@ function alphaBeta(
     }
   }
 
-  for (let column = 0; column < COLUMNS; column++) {
+  for (const column of COLUMN_ORDER) {
     if (position.canPlay(column)) {
       const next = position.clone();
       next.play(column);

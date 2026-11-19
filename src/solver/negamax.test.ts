@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS, ROWS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
-import { analyze, analyzeNegamax, negamax, solve } from './negamax';
+import { COLUMN_ORDER, analyze, analyzeNegamax, negamax, solve } from './negamax';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 
@@ -196,5 +196,11 @@ describe('both boards', () => {
       expect(analyze(pairs[i])).toEqual(analyze(references[i]));
       expect(analyzeNegamax(pairs[i])).toEqual(analyzeNegamax(references[i]));
     }
+  });
+});
+
+describe('move order', () => {
+  it('tries the columns from the centre outwards', () => {
+    expect(COLUMN_ORDER).toEqual([3, 2, 4, 1, 5, 0, 6]);
   });
 });
