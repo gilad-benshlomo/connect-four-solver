@@ -1,6 +1,6 @@
-import { COLUMNS, ROWS } from '../game/board';
-import type { Position } from './position';
-import type { TranspositionTable } from './transpositionTable';
+import { COLUMNS, ROWS } from '../game/board.ts';
+import type { Position } from './position.ts';
+import type { TranspositionTable } from './transpositionTable.ts';
 
 /** Number of cells on the board: the most moves a game can last. */
 const CELLS = COLUMNS * ROWS;

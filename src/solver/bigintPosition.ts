@@ -1,5 +1,5 @@
-import { COLUMNS, ROWS } from '../game/board';
-import type { Position } from './position';
+import { COLUMNS, ROWS } from '../game/board.ts';
+import type { Position } from './position.ts';
 
 // Each column takes ROWS + 1 bits: the extra bit is an always-empty helper row
 // that stops lines from wrapping from the top of one column to the next.

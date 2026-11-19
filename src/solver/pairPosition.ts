@@ -1,5 +1,5 @@
-import { COLUMNS, ROWS } from '../game/board';
-import type { Position } from './position';
+import { COLUMNS, ROWS } from '../game/board.ts';
+import type { Position } from './position.ts';
 
 // Same layout as BigIntPosition: each column takes ROWS + 1 bits, the extra
 // bit being an always-empty helper row. Cell (column, row) is bit
