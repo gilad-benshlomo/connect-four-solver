@@ -15,6 +15,32 @@ export const COLUMN_ORDER = Array.from({ length: COLUMNS }, (_, i) => {
   return i % 2 === 1 ? centre - (i + 1) / 2 : centre + i / 2;
 });
 
+/**
+ * Returns the allowed columns in the order alpha-beta should try them: the
+ * moves that make the most threats first (see `Position.threatsAfter`), and
+ * among moves with as many threats, the centre-first `COLUMN_ORDER`.
+ * `allowed` is a set of columns as bits, as `nonLosingColumns` returns it.
+ */
+export function orderMoves(position: Position, allowed: number): number[] {
+  const columns: number[] = [];
+  const threats: number[] = [];
+  for (const column of COLUMN_ORDER) {
+    if ((allowed & (1 << column)) === 0) continue;
+    const count = position.threatsAfter(column);
+    // Insertion sort: moves with fewer threats move one place back. A move
+    // with as many threats stays in front, so ties keep the centre order.
+    let i = columns.length;
+    while (i > 0 && threats[i - 1] < count) {
+      columns[i] = columns[i - 1];
+      threats[i] = threats[i - 1];
+      i--;
+    }
+    columns[i] = column;
+    threats[i] = count;
+  }
+  return columns;
+}
+
 /** What a search found, and how much work it took. */
 export type SearchResult = {
   /** The exact score, on the same scale as `negamax` and `solve`. */
@@ -197,6 +223,12 @@ function alphaBeta(
     return immediateWinScore(position.moves);
   }
 
+  // Moves that let the opponent win with their next disc are never worth trying.
+  const safe = position.nonLosingColumns();
+  if (safe === 0) {
+    return 0 - immediateWinScore(position.moves + 1); // every move loses at once
+  }
+
   // There is no win with the next disc, so the best possible result is a win
   // with the disc after it. Asking for more than that is pointless: lower beta.
   let bestPossible = immediateWinScore(position.moves + 2);
@@ -216,19 +248,17 @@ function alphaBeta(
     }
   }
 
-  for (const column of COLUMN_ORDER) {
-    if (position.canPlay(column)) {
-      const next = position.clone();
-      next.play(column);
-      // The point of view flips, so the window flips with it.
-      // (0 - x, not -x, for the same reason as in negamax.)
-      const score = 0 - alphaBeta(next, 0 - beta, 0 - alpha, context);
-      if (score >= beta) {
-        return score; // the opponent will never allow this position
-      }
-      if (score > alpha) {
-        alpha = score; // a new best guarantee
-      }
+  for (const column of orderMoves(position, safe)) {
+    const next = position.clone();
+    next.play(column);
+    // The point of view flips, so the window flips with it.
+    // (0 - x, not -x, for the same reason as in negamax.)
+    const score = 0 - alphaBeta(next, 0 - beta, 0 - alpha, context);
+    if (score >= beta) {
+      return score; // the opponent will never allow this position
+    }
+    if (score > alpha) {
+      alpha = score; // a new best guarantee
     }
   }
   // No move reached beta, so this position scores at most alpha: remember it.
