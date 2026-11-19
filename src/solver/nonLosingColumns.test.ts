@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
+import { PairPosition } from './pairPosition';
+import type { Position } from './position';
 
 /** The type of the boards under test. */
-type TestPosition = BigIntPosition;
+type TestPosition = Position;
 
 /** Every test below runs once for each board in this list. */
 const IMPLEMENTATIONS: { name: string; create: () => TestPosition }[] = [
   { name: 'BigIntPosition', create: () => new BigIntPosition() },
+  { name: 'PairPosition', create: () => new PairPosition() },
 ];
 
 /** A set of columns, as `nonLosingColumns` returns it, from a list. */

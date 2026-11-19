@@ -25,6 +25,14 @@ export interface Position {
    */
   isWinningMove(column: number): boolean;
 
+  /**
+   * Returns the columns where the player to move can play without leaving the
+   * opponent a win with their next disc, as a set of bits: bit c is on when
+   * column c is safe. Must only be called when the player to move cannot win
+   * right away.
+   */
+  nonLosingColumns(): number;
+
   /** Returns a number that identifies the position; the same for both boards. */
   key(): number;
 
