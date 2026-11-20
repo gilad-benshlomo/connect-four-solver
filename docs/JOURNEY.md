@@ -46,6 +46,13 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D16 | **The bitboard is built twice behind one interface:** BigInt as a readable reference that stays in the tests, and two 32-bit numbers as the fast version. Both must agree on every position; measurements decide which one runs on the site; WebAssembly only if neither is fast enough | JavaScript bitwise operators cut numbers to 32 bits, and the board needs 49. Only the board module knows how bits are stored: the search, move ordering, transposition table and tests see plain numbers (columns, scores, keys), so swapping versions touches one file. |
 | D17 | **How the search is built and checked:** the search copies the position (`clone`) before each move instead of undoing it; a plain negamax comes first, then alpha-beta pruning, which must return exactly the same scores; test positions are a few hand-built ones plus the published benchmark sets | Copying is the version that is hard to get wrong; undo is added only if measurements show copying is a bottleneck. Pruning is the delicate part, so it is checked against a search with no pruning at all. Hand-built positions pinpoint what broke; published positions are the independent proof, and catch a misunderstanding that the code and our own tests would share. |
 | D18 | **The published benchmark files stay out of the repository:** they live in `benchmarks/` (listed in `.gitignore`), and the test that reads them runs only when they are present and is skipped otherwise (e.g. in CI). The README will say where to download them. To be revisited if the author gives permission to include them | The tutorial page only says "© 2019 Pascal Pons", with no licence for the data, so copying the files into a public repo would be redistribution without permission. A single example position quoted from the page, with credit, is used in the normal tests. |
+| D19 | **How speed is measured:** `npm run measure` runs `*.measure.ts` files with their own Vitest config, never as part of `npm test`; one warm-up run, then the median of 3 runs; columns as in the tutorial (mean time, slowest, mean explored positions, positions per second). Explored counts must be identical across boards and runs | Timings vary, tests must not. Explored positions measure the algorithm, time measures the code; when only the board changes, only the time may move. Speed numbers differ between the test runner, plain Node and Chrome, so small differences are not trusted (see the lessons) |
+| D20 | **The fast board splits the 49 bits by columns:** `PairPosition` keeps columns 0–3 (28 bits) in one 32-bit number and columns 4–6 (21 bits) in another; shifts that cross the halves go through small helper functions. Both boards implement one `Position` interface, which the search uses | Drops never cross the halves, and no value ever reaches bit 31, so JavaScript's signed 32-bit operators are safe. Measured about 8× faster than BigInt; it is the board the search runs on. BigInt stays as the reference in the tests (D16) |
+| D21 | **Transposition table:** a fixed-size table indexed by `key % size`, storing only the low 32 bits of the key (`Uint32Array`) and an upper bound on the score (`Uint8Array`, 0 = empty). The size must be an odd number above 2^17 | The slot plus the low 32 bits identify a 49-bit key exactly when the size is odd and above 2^17 (Chinese remainder theorem), so no wrong hit is possible. Storing only upper bounds is what alpha-beta can always prove after a search that found no move above alpha |
+| D22 | **`solve` uses null-window searches** (a binary search on the score, each step asking only "above or below this value?"); the full-window search stays as `solveFullWindow`, a reference in the tests | Narrow windows prune far more. Rounding with `Math.floor` was chosen by measurement over `Math.trunc` (half the explored positions in Middle-Easy) |
+| D23 | **Move ordering:** the search tries only moves that do not let the opponent win at once (`nonLosingColumns`), the ones that make the most threats first (`threatsAfter`), and the centre-first order among equals | The filter alone cut explored positions by 37% but did not save time; with the threat ordering, positions dropped 10–60× on hard opening positions and time 2–150×. Measured before writing it into the project |
+| D24 | **Opening book:** for each position on the computer's turn before move 10, the book stores the computer's move (the best score: fastest win or slowest loss; centre first among equals). A position and its mirror image share one entry. The first move when the computer starts is fixed to the centre, the only winning first move (Allis, 1988). Two books: computer first and player first. Built offline by a resumable script into `public/` as JSON `[key, column]` pairs | Early positions are too slow to solve during a game (minutes or more); after move 10 the solver answers in about a second. Mirror images halve the work and the file. The book is our own output, so it goes into the repo |
+| D25 | **Imports in the solver include the `.ts` extension**, so Node 24 runs the TypeScript files directly (type stripping), with no extra tool | The book build runs for hours as a plain Node program, not as a test. `allowImportingTsExtensions` was already on; Vite and Vitest accept both forms |
 
 ---
 
@@ -194,7 +201,7 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - The tutorial site failed the certificate check in the Claude app's built-in browser (certificate issued for a different name); it opened normally in the user's own browser.
 - With Vite 8.3 and Vitest 5.1: `import.meta.glob` needs a wildcard (a plain file name fails); the built-in `bench` API did not work; a separate Vitest config file that includes only `*.measure.ts` files does work.
 
-**Proposed, not yet decided — how to measure speed** (to be confirmed at the start of the next session):
+**Proposed, not yet decided — how to measure speed** (confirmed in the next session as D19):
 1. What: mean time per position, mean number of explored positions, and positions per second (the same columns as the tutorial's table). Explored positions must stay identical when only the board representation changes; only positions per second should move.
 2. On what: the first 100 positions of End-Easy and Middle-Easy (`Test_L2_R1`, to be downloaded into `benchmarks/`).
 3. How: `*.measure.ts` files run by a separate `npm run measure` with its own small Vitest config, never by `npm test` (timings vary; tests must be fast and repeatable).
@@ -212,6 +219,62 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - The path bar under the tabs shows which file is open; `bigintPosition.ts` and `bigintPosition.test.ts` are easy to mix up.
 - A method pasted after the class's closing `}` is outside the class; the indentation of the brace shows what it closes.
 - After reverting a deliberate break, `git status` should list only the files that really changed; an extra file means the revert was not exact.
+
+### 2026-11-16 → 2026-11-20 — Speed, then the opening book
+**Speed, in order** (each step measured on Middle-Easy, `Test_L2_R1`, and kept only if it helped):
+1. Measurement first (D19): an explored-positions counter in both searches, `npm run measure`, and Middle-Easy as the baseline.
+2. The fast board (D20): `PairPosition` on two 32-bit numbers, run through the same tests as BigInt (a list of implementations), checked against it on random games including keys, then a shared `Position` interface.
+3. A cap on the window: no position can score more than a win with the disc after next.
+4. Centre-first move order.
+5. A transposition table (D21), tested on its own before being used in the search.
+6. Null-window searches (D22).
+7. `nonLosingColumns` on both boards (the moves that do not hand the opponent a win), tested against a slow rule built from tested operations.
+8. `threatsAfter` on both boards (how many empty cells would complete four after a move), tested against a plain grid with no bits; `orderMoves`; then the search tries only safe moves, most threats first (D23).
+9. Two more measurement rows: the first 100 Begin-Medium positions, and 20 Begin-Hard positions after 8 moves (where a depth-8 book would end).
+
+**Decided not to chase small gains:** the filter on its own, a browser measurement page and other ±15% ideas were dropped once it was clear that the opening book is what makes perfect play possible, and that the solver only needs to be fast enough to build it and to play after it.
+
+**The opening book (D24, D25):**
+- `mirrorKey` (the key of the mirror image, worked out from the key as digits in base 128), `addToBook` and `bookMove` (one entry per mirror pair, under the smaller key), and `buildBook`, which walks every game where the computer follows the book and the opponent tries every move, and can be stopped and continued.
+- `bestMove` in `negamax.ts`: the move with the best score, centre first among equals; used to build the book and, later, by the game after the book ends.
+- `scripts/buildBook.ts`: builds both books to depth 10, saving after every entry. Started on the night of 2026-11-20; not committed yet.
+
+**What the deliberate breaks showed** (earlier steps: the explored counter, an empty move list, the cross-half shifts, `clone` without the move count, the cap off by 4, a missing column in the order, the table without the key check, the table storing a lower bound, a too-narrow first range, a missing gap pattern in the winning cells, `upHigh` without the low half; each failed the tests predicted):
+
+| Bug introduced | Caught by |
+|---|---|
+| `threatsAfter` on the fast board counting only columns 0–3 | 2 tests: the hand-built "both open ends" (one end in column 4) and the random comparison; the other hand-built tests passed, their threats being in columns 0–3 |
+| `orderMoves` with `<=` instead of `<` | 4 of 5 tests: every tie came out reversed |
+| An immediate loss scored one disc too early | 7 tests in 2 files, every score off by exactly one |
+| `mirrorKey` putting each column one place too far | All 4 tests, already on the empty board |
+| `bookMove` not mirroring the column it finds through the mirror image | 2 tests: the mirror-image test and the random one |
+| `bestMove` with `>=` instead of `>` | Only the random comparison with plain negamax (a tie between columns 3 and 6) |
+| `buildBook` ignoring what the book already has | 3 tests: 400 choices instead of 98, a second run choosing everything again, a stopped build losing entries |
+
+**Measured** (on the user's PC, `npm run measure`, `PairPosition`, null window with a table):
+
+| Set | Mean | Slowest | Mean explored |
+|---|---|---|---|
+| Middle-Easy, first 100: plain alpha-beta, full window | 337 ms | | |
+| … with the cap | 200 ms | | |
+| … with centre-first order | 3.4 ms | | |
+| … with the table | 0.57 ms | | |
+| … with null windows | 0.11 ms | | |
+| Middle-Easy, all 1000, before / after threat ordering | 0.34 / 0.18 ms | 40 / 8.6 ms | 4,444 / 618 |
+| Begin-Easy, all 1000, before / after threat ordering | 14.9 / 1.33 ms | 640 / 46 ms | 193,480 / 4,326 |
+| Begin-Medium, first 100 | 463 ms | 13.2 s | 1,709,178 |
+| Begin-Hard, first 20 after 8 moves | 2.84 s | 7.5 s | 10,887,630 |
+
+On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40 s each, and one after 2 moves did not finish in 5 minutes: the player-first book, whose first choices follow 2 moves, is the slow part.
+
+**Lessons:**
+- The test runner, plain Node and Chrome gave different answers about the same change (the filter: slower, faster, equal). Trust large effects, and decide close calls in the browser.
+- Cutting explored positions pays only if the cut is larger than the extra work per position: 37% did not, 10–60× did.
+- Check the cheap answers first: `bestMove` first solved the centre column (over two minutes) before noticing a win in column 0.
+- A solver test that starts from an early position can run for minutes; keep such tests near the end of the game, and keep trial runs small.
+- The expected values in a test can be wrong too: the first random book test overwrote the expected column of positions that are their own mirror image.
+- Copy the files from disk and compare them before a commit: this caught an unsaved file, a line pasted into the wrong file (`orderMoves.test.ts` instead of `openingBook.test.ts`), and two imports joined on one line.
+- "No test suite found" means the test file on disk is empty: save before running.
 
 ---
 
@@ -250,11 +313,15 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 - Loads quickly on a phone over 4G.
 
 **Open items noted for later:**
-- Update the repo description and README (both still mention Python). Credit Pascal Pons's tutorial and benchmark positions (D15), and explain where to download the benchmark files into `benchmarks/` (D18).
+- ~~Update the repo description and README (both still mention Python). Credit Pascal Pons's tutorial and benchmark positions (D15), and explain where to download the benchmark files into `benchmarks/` (D18).~~ Done (`4f49f79`).
 - Consider asking Pascal Pons for permission to include the benchmark files in the repo (D18).
 - The test helpers `play`, `seededRandom` and `playableColumns` are repeated in several test files; move them into one shared file (a separate refactoring commit).
-- When the two-number bitboard arrives, replace the `BigIntPosition` type in `negamax.ts` with a shared position interface (D16).
+- ~~When the two-number bitboard arrives, replace the `BigIntPosition` type in `negamax.ts` with a shared position interface (D16).~~ Done (`c4f09fb`).
 - The tutorial's other example, `4455` (score 18, a win with the 4th disc), needs a deep search from move 4; keep it as a test for the speed stage.
+- `scripts/buildBook.ts` has no editor types for Node (`node:fs`, `process` are underlined in VS Code); harmless, as `tsc` checks only `src`. Could get its own small tsconfig with `@types/node` if wanted.
+- Possible speed-ups not taken: lookup tables for the bit masks in `PairPosition` (25–35% faster in a scratch test), local constants in hot loops, lower bounds in the table.
+- Mention the opening book and its sources (Allis 1988 for the first move) in the README.
+- A whitespace leftover in `src/solver/position.ts` (an empty line with two spaces, after `threatsAfter`); fix in a formatting-only commit.
 - Design a social preview image for the repo (shown when the link is shared on LinkedIn).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
 - GitHub notes that `ubuntu-latest` is moving to Ubuntu 26. The workflow uses only Node, npm and Vite, so no change is expected.
@@ -279,6 +346,19 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 
 **Next:** decide how to measure speed, then the two-number bitboard (D16), then move ordering, a transposition table and an opening book.
 
+## Phase 6 — Solver: speed and the opening book (2026-11-16 → 2026-11-20)
+
+**What was built:**
+- `src/solver/position.ts` (the shared interface) and `src/solver/pairPosition.ts` (the fast board), with `nonLosingColumns` and `threatsAfter` on both boards.
+- `src/solver/transpositionTable.ts`; in `negamax.ts`: the window cap, null-window `solve`, `orderMoves` and `bestMove`.
+- `src/solver/openingBook.ts`: mirror images, storing and looking up moves, and the resumable build; `scripts/buildBook.ts` (not committed yet).
+- `src/solver/search.measure.ts` and `npm run measure`.
+- 146 tests in 12 files; in CI the 4 tests that read the published files are skipped.
+
+**Measured:** Middle-Easy from 337 ms to 0.11 ms per position (first 100); Begin-Easy 1.3 ms; positions after 8 moves about 3 s.
+
+**Next:** check the books built overnight, commit them and the script, then the Web Worker and the game page.
+
 ---
 
 ## Tools used so far
@@ -301,6 +381,7 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | GitHub Pages | — | Hosts the live site | In use |
 | GitHub Actions extension (VS Code) | 0.32.3 | Validates workflow files in the editor | In use |
 | Vitest | 5.1.0 | Unit tests | In use |
+| Node type stripping | (Node 24) | Runs `scripts/buildBook.ts` straight from TypeScript | In use |
 | Benchmark sets (Pascal Pons) | — | Published positions with exact scores, for tests and measurement | In use, local only (D18) |
 
 ## Commit history
@@ -336,6 +417,30 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | `816e9ef` | Fix negamax returning -0 instead of 0 for some draws |
 | `91c1596` | Check negamax against published benchmark positions |
 | `f5d0e9b` | Add alpha-beta pruning, checked against plain negamax |
+| `de6fa2c` | Update journey: solver correctness |
+| `439ebbf` | Count explored positions in both searches |
+| `d9e4266` | Add npm run measure for search speed on End-Easy |
+| `4ca8dd0` | Run the bitboard tests on a list of implementations |
+| `b86f71f` | Add the bitboard on two 32-bit numbers, checked against BigInt |
+| `c4f09fb` | Search any board through a shared Position interface |
+| `4f49f79` | Rewrite README for the TypeScript solver |
+| `f853a79` | Measure the search on both bitboards |
+| `fb4764c` | Measure Middle-Easy as the baseline for speed-ups |
+| `bfcedb7` | Cap the alpha-beta window at the best score still possible |
+| `73fd225` | Try columns from the centre outwards |
+| `2114f2a` | Add a transposition table, tested on its own |
+| `5d7a491` | Use the transposition table in alpha-beta |
+| `5aacb8b` | Solve with null-window searches; keep the full window as a reference |
+| `2ef32f1` | Find the non-losing columns on the BigInt board |
+| `cab5384` | Find the non-losing columns on the fast board too |
+| `734515f` | Count the threats a move creates, on both boards |
+| `fb1a41b` | Try safe moves only, the ones that make the most threats first |
+| `2c26a81` | Measure the opening sets where the book will end |
+| `4a1569c` | Import with file extensions so Node can run the solver directly |
+| `08f815f` | Mirror a position's key, for the opening book |
+| `0653f9d` | Choose the best move: fastest win or slowest loss, centre first |
+| `6998d87` | Store and look up moves in the opening book, sharing mirror images |
+| `2c8c3eb` | Build the opening book by walking every game, resumable |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -345,7 +450,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
-3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness on end-of-game positions done 2026-11-15 (BigInt bitboard, negamax, alpha-beta, all 1,000 End-Easy positions). Next: how to measure speed (proposal in the 2026-11-15 log), then the two-number bitboard.*
+3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); the opening books are being built (script started on the night of 2026-11-20). Next: check and commit the books, then the Web Worker.*
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
 6. **Polish and README.**
