@@ -193,6 +193,35 @@ export function solveFullWindow(position: Position, table?: TranspositionTable):
 }
 
 /**
+ * Returns the column the player to move should play: the one with the best
+ * score (the fastest win, or else the slowest loss), and among moves with the
+ * same score, the first in `COLUMN_ORDER`. Solves the position after each
+ * move, so it takes about as long as a few calls to `solve`.
+ * Must only be called when the game is not over (some column is playable).
+ */
+export function bestMove(position: Position, table?: TranspositionTable): number {
+  // Nothing beats winning right away, and it needs no search.
+  for (const column of COLUMN_ORDER) {
+    if (position.canPlay(column) && position.isWinningMove(column)) {
+      return column;
+    }
+  }
+  let best = -1;
+  let bestScore = -Infinity;
+  for (const column of COLUMN_ORDER) {
+    if (!position.canPlay(column)) continue;
+    const next = position.clone();
+    next.play(column);
+    const score = 0 - solve(next, table);
+    if (score > bestScore) {
+      best = column;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/**
  * Same search as `solveFullWindow`, but also reports how many positions it
  * visited. Used by tests and measurements.
  */
