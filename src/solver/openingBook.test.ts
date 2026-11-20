@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
-import { mirrorKey } from './openingBook';
+import { addToBook, bookMove, mirrorKey, type OpeningBook } from './openingBook';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 
@@ -81,5 +81,71 @@ describe('mirrorKey', () => {
     // Make sure the test really met many positions, nearly all of them not symmetric.
     expect(checked).toBeGreaterThan(8000);
     expect(different).toBeGreaterThan(8000);
+  });
+});
+
+describe('the opening book', () => {
+  it('has nothing for a position that was never stored', () => {
+    expect(bookMove(new Map(), play([3]))).toBeUndefined();
+  });
+
+  it('returns the column stored for a position', () => {
+    const book: OpeningBook = new Map();
+    addToBook(book, play([3, 2]), 4);
+    expect(bookMove(book, play([3, 2]))).toBe(4);
+  });
+
+  it('returns the mirrored column for the mirror image', () => {
+    const book: OpeningBook = new Map();
+    addToBook(book, play([0, 1]), 2);
+    expect(bookMove(book, play([6, 5]))).toBe(4);
+  });
+
+  it('keeps one entry for a position and its mirror image, under the smaller key', () => {
+    const book: OpeningBook = new Map();
+    addToBook(book, play([0, 1]), 2);
+    addToBook(book, play([6, 5]), 4);
+    expect(book.size).toBe(1);
+    const key = play([0, 1]).key();
+    expect([...book.keys()]).toEqual([Math.min(key, mirrorKey(key))]);
+  });
+
+  it('stores and returns the column as it is for a position that is its own mirror image', () => {
+    const book: OpeningBook = new Map();
+    addToBook(book, play([2, 3, 4]), 1);
+    expect(bookMove(book, play([2, 3, 4]))).toBe(1);
+  });
+
+  it('returns what was stored over many random positions, and their mirror images', () => {
+    const random = seededRandom(13);
+    const book: OpeningBook = new Map();
+    const stored: { moves: number[]; column: number }[] = [];
+
+    for (let game = 0; game < 300; game++) {
+      // A short random game, and a random column to store for where it ends.
+      const moves = Array.from({ length: 1 + Math.floor(random() * 10) }, () =>
+        Math.floor(random() * COLUMNS),
+      );
+      const column = Math.floor(random() * COLUMNS);
+      addToBook(book, play(moves), column);
+      stored.push({ moves, column });
+    }
+
+    // What the book should return for each key: a later game can reach the
+    // same position or its mirror image and replace the column, so the last
+    // one stored counts. The mirror image goes first, so that for a position
+    // that is its own mirror image the column itself is what remains.
+    const expected = new Map<number, number>();
+    for (const { moves, column } of stored) {
+      expected.set(play(mirrored(moves)).key(), COLUMNS - 1 - column);
+      expected.set(play(moves).key(), column);
+    }
+    for (const { moves } of stored) {
+      expect(bookMove(book, play(moves)), moves.join('')).toBe(expected.get(play(moves).key()));
+      const mirror = mirrored(moves);
+      expect(bookMove(book, play(mirror)), mirror.join('')).toBe(expected.get(play(mirror).key()));
+    }
+    // Mirror images and repeated positions share entries.
+    expect(book.size).toBeLessThan(stored.length);
   });
 });

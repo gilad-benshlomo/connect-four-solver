@@ -1,4 +1,5 @@
 import { COLUMNS, ROWS } from '../game/board.ts';
+import type { Position } from './position.ts';
 
 // In a key (see `Position.key`), each column takes ROWS + 1 bits: its cells
 // and the helper cell above them. As a number, column c is the digit at
@@ -21,4 +22,38 @@ export function mirrorKey(key: number): number {
     mirrored += digit * COLUMN_VALUES ** (COLUMNS - 1 - column);
   }
   return mirrored;
+}
+
+/**
+ * The opening book: for each stored position, the column to play there.
+ * A position and its mirror image share one entry, kept under the smaller of
+ * their two keys, with the column as seen from that one.
+ */
+export type OpeningBook = Map<number, number>;
+
+/** Returns the column on the other side of the board: 0 for 6, 1 for 5, and so on. */
+function mirrorColumn(column: number): number {
+  return COLUMNS - 1 - column;
+}
+
+/** Stores the column to play in a position (see `OpeningBook`). */
+export function addToBook(book: OpeningBook, position: Position, column: number): void {
+  const key = position.key();
+  const mirror = mirrorKey(key);
+  if (mirror < key) {
+    book.set(mirror, mirrorColumn(column));
+  } else {
+    book.set(key, column);
+  }
+}
+
+/** Returns the column stored for a position, or undefined if the book does not have it. */
+export function bookMove(book: OpeningBook, position: Position): number | undefined {
+  const key = position.key();
+  const mirror = mirrorKey(key);
+  if (mirror < key) {
+    const column = book.get(mirror);
+    return column === undefined ? undefined : mirrorColumn(column);
+  }
+  return book.get(key);
 }
