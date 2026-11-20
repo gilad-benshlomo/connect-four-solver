@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { COLUMNS } from '../game/board';
 import { BigIntPosition } from './bigintPosition';
-import { addToBook, bookMove, mirrorKey, type OpeningBook } from './openingBook';
+import { COLUMN_ORDER } from './negamax';
+import {
+  addToBook,
+  bookMove,
+  buildBook,
+  mirrorKey,
+  type BookOptions,
+  type OpeningBook,
+} from './openingBook';
 import { PairPosition } from './pairPosition';
 import type { Position } from './position';
 
@@ -147,5 +155,137 @@ describe('the opening book', () => {
     }
     // Mirror images and repeated positions share entries.
     expect(book.size).toBeLessThan(stored.length);
+  });
+});
+
+/** A cheap stand-in for `bestMove`: the most central playable column. */
+function centralMove(position: Position): number {
+  return COLUMN_ORDER.find((column) => position.canPlay(column)) ?? -1;
+}
+
+/**
+ * Plays every game the book allows from the start, the computer following the
+ * book and the opponent trying every move that does not win, and checks that
+ * the book has a move for every position on the computer's turn before `depth`.
+ * Returns how many such positions it met.
+ */
+function checkCovered(book: OpeningBook, start: Position, computerStarts: boolean, depth: number): number {
+  let met = 0;
+  const visit = (position: Position): void => {
+    if (position.moves >= depth) return;
+    if (position.moves % 2 === (computerStarts ? 0 : 1)) {
+      const column = bookMove(book, position);
+      expect(column, `no move after ${position.moves} moves`).toBeDefined();
+      met++;
+      if (position.isWinningMove(column!)) return;
+      const next = position.clone();
+      next.play(column!);
+      visit(next);
+    } else {
+      for (let column = 0; column < COLUMNS; column++) {
+        if (!position.canPlay(column) || position.isWinningMove(column)) continue;
+        const next = position.clone();
+        next.play(column);
+        visit(next);
+      }
+    }
+  };
+  visit(start);
+  return met;
+}
+
+describe('buildBook', () => {
+  /** Options with the cheap chooser that records every position it was asked about. */
+  function options(computerStarts: boolean, depth: number, asked: Position[]): BookOptions {
+    return {
+      computerStarts,
+      depth,
+      chooseMove: (position) => {
+        asked.push(position.clone());
+        return centralMove(position);
+      },
+    };
+  }
+
+  it('stores nothing with depth 0', () => {
+    const book: OpeningBook = new Map();
+    buildBook(book, play([]), options(true, 0, []));
+    expect(book.size).toBe(0);
+  });
+
+  it('stores the first move, then one move for each reply up to mirror images', () => {
+    const book: OpeningBook = new Map();
+    buildBook(book, play([]), options(true, 3, []));
+    // The empty board, then the centre and each of the 7 replies; replies in
+    // columns 0 and 6 (and 1 and 5, 2 and 4) are mirror images.
+    expect(book.size).toBe(1 + 4);
+    for (let reply = 0; reply < COLUMNS; reply++) {
+      expect(bookMove(book, play([3, reply]))).toBe(centralMove(play([3, reply])));
+    }
+  });
+
+  it('covers every position where the computer moves, and stays within the depth', () => {
+    for (const computerStarts of [true, false]) {
+      const asked: Position[] = [];
+      const book: OpeningBook = new Map();
+      buildBook(book, play([]), options(computerStarts, 7, asked));
+      expect(checkCovered(book, play([]), computerStarts, 7)).toBeGreaterThan(book.size);
+      // Each entry was chosen once, always on the computer's turn and before the depth.
+      expect(asked).toHaveLength(book.size);
+      for (const position of asked) {
+        expect(position.moves % 2).toBe(computerStarts ? 0 : 1);
+        expect(position.moves).toBeLessThan(7);
+      }
+    }
+  });
+
+  it('chooses nothing again when run a second time with the same book', () => {
+    const book: OpeningBook = new Map();
+    buildBook(book, play([]), options(false, 6, []));
+    const asked: Position[] = [];
+    buildBook(book, play([]), options(false, 6, asked));
+    expect(asked).toHaveLength(0);
+  });
+
+  it('continues a stopped build to the same book as a build in one go', () => {
+    const whole: OpeningBook = new Map();
+    buildBook(whole, play([]), options(true, 7, []));
+
+    const book: OpeningBook = new Map();
+    let stored = 0;
+    const stopping: BookOptions = {
+      ...options(true, 7, []),
+      onStored: () => {
+        stored++;
+        if (stored === 20) throw new Error('stopped');
+      },
+    };
+    expect(() => buildBook(book, play([]), stopping)).toThrow('stopped');
+    expect(book.size).toBe(20);
+    buildBook(book, play([]), options(true, 7, []));
+    expect(new Map([...book].sort())).toEqual(new Map([...whole].sort()));
+  });
+
+  it('stops after the computer wins', () => {
+    // X has three in column 0 and the computer (X) is to move: it wins at once.
+    const asked: Position[] = [];
+    const book: OpeningBook = new Map();
+    buildBook(book, play([0, 1, 0, 1, 0, 1]), {
+      ...options(true, 20, asked),
+      chooseMove: (position) => {
+        asked.push(position);
+        return 0;
+      },
+    });
+    expect(asked).toHaveLength(1);
+  });
+
+  it('skips the moves that win for the opponent', () => {
+    // X, the opponent here, is to move and wins in column 0; the other six
+    // moves each leave the computer a position to choose in.
+    const asked: Position[] = [];
+    const book: OpeningBook = new Map();
+    buildBook(book, play([0, 1, 0, 1, 0, 1]), options(false, 8, asked));
+    expect(asked).toHaveLength(6);
   });
 });
