@@ -141,8 +141,8 @@ function checkWinning(title: string, positions: Reached[]): void {
   }
 }
 
-const computerFirst = load('public/book-computer-first.json');
-const playerFirst = load('public/book-player-first.json');
+const computerFirst = load('src/solver/books/book-computer-first.json');
+const playerFirst = load('src/solver/books/book-player-first.json');
 const computerReached = reachedPositions(computerFirst, true);
 const playerReached = reachedPositions(playerFirst, false);
 const runStarted = Date.now();

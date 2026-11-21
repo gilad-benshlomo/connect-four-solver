@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import computerFirstFile from '../../public/book-computer-first.json';
-import playerFirstFile from '../../public/book-player-first.json';
+import computerFirstFile from './books/book-computer-first.json';
+import playerFirstFile from './books/book-player-first.json';
 import { COLUMNS } from '../game/board';
 import { bookMove, mirrorKey, type OpeningBook } from './openingBook';
 import { PairPosition } from './pairPosition';

@@ -5,7 +5,7 @@ import { PairPosition } from '../src/solver/pairPosition.ts';
 import type { Position } from '../src/solver/position.ts';
 import { TranspositionTable } from '../src/solver/transpositionTable.ts';
 
-// Builds the two opening books into public/, where the site will load them.
+// Builds the two opening books into src/solver/books/, where the solver imports them.
 // Run with `node scripts/buildBook.ts` (an optional number sets a smaller
 // depth, for a quick try). Stop it with Ctrl+C at any time and run it again
 // to continue: each book is saved after every new entry.
@@ -20,8 +20,8 @@ const TABLE_SIZE = 8_388_617;
 const CENTRE = 3;
 
 const BOOKS = [
-  { computerStarts: true, file: 'public/book-computer-first.json' },
-  { computerStarts: false, file: 'public/book-player-first.json' },
+  { computerStarts: true, file: 'src/solver/books/book-computer-first.json' },
+  { computerStarts: false, file: 'src/solver/books/book-player-first.json' },
 ];
 
 /** Reads a book saved by `save`, or returns an empty one if there is none yet. */
