@@ -276,6 +276,18 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 - Copy the files from disk and compare them before a commit: this caught an unsaved file, a line pasted into the wrong file (`orderMoves.test.ts` instead of `openingBook.test.ts`), and two imports joined on one line.
 - "No test suite found" means the test file on disk is empty: save before running.
 
+### 2026-11-20 (day) — Building the opening books
+- Ran `node scripts/buildBook.ts` (depth 10) from 02:45. The computer-first book finished at 04:35: **825 entries in about 1 h 50 min**. The script then went on to the player-first book by itself.
+- Some time after 05:48 Windows restarted the PC (probably an update). Nothing was lost: the script saves after every entry through a temporary file, and running the same command again continued from the same point.
+- The player-first book finished at 15:16: **3,032 entries in about 5 h 50 min** in total. By the player's first move (four cases, thanks to mirror images): column 0/6, 842 entries, about 1 h 30 min; 1/5, 1,302 entries, about 2 h 50 min; 2/4, 721 entries, about 26 min; 3, 729 entries, about 30 min.
+- Checked both files outside the tests, by walking every game where the computer follows the book and the opponent plays any move that does not win at once: a stored move for all 2,212 computer-first positions and all 12,627 player-first positions before move 10, none missing. Every key is distinct and every column is 0–6. Both files together are under 70 KB.
+- Committed the updated journal (`f4c88c0`). The script and the two books are not committed yet; they wait for the checks planned below.
+- **Planned checks (approved):** a fast test in `npm test` that reads the books from `public/` (so it also runs in CI) and checks coverage and legal moves; and a one-off script that compares a random sample of deep entries with `bestMove`, and confirms with `solve` that the computer-first book keeps the computer winning at its edge. "Thousands of games won by the computer" comes later, once the full game runs.
+- Lessons:
+  - Time estimates for the build were wrong both ways: the first book took far less than estimated, and the player-first branches that start near the centre, expected to be the slowest, were the fastest and smallest.
+  - A long job on a home PC needs: sleep off, the power-saving mode off while plugged in, Windows updates paused, and a job that can be stopped and continued.
+  - A new PowerShell terminal again refused `npm`; `npm.cmd` works.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -351,13 +363,15 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 **What was built:**
 - `src/solver/position.ts` (the shared interface) and `src/solver/pairPosition.ts` (the fast board), with `nonLosingColumns` and `threatsAfter` on both boards.
 - `src/solver/transpositionTable.ts`; in `negamax.ts`: the window cap, null-window `solve`, `orderMoves` and `bestMove`.
-- `src/solver/openingBook.ts`: mirror images, storing and looking up moves, and the resumable build; `scripts/buildBook.ts` (not committed yet).
+- `src/solver/openingBook.ts`: mirror images, storing and looking up moves, and the resumable build; `scripts/buildBook.ts` and the two books in `public/` (built on 2026-11-20, not committed yet).
 - `src/solver/search.measure.ts` and `npm run measure`.
 - 146 tests in 12 files; in CI the 4 tests that read the published files are skipped.
 
 **Measured:** Middle-Easy from 337 ms to 0.11 ms per position (first 100); Begin-Easy 1.3 ms; positions after 8 moves about 3 s.
 
-**Next:** check the books built overnight, commit them and the script, then the Web Worker and the game page.
+**Built on 2026-11-20:** the computer-first book (825 entries, about 1 h 50 min) and the player-first book (3,032 entries, about 5 h 50 min), both covering every position on the computer's turn before move 10.
+
+**Next:** test both books, commit them with the script, then the Web Worker and the game page.
 
 ---
 
@@ -441,6 +455,7 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 | `0653f9d` | Choose the best move: fastest win or slowest loss, centre first |
 | `6998d87` | Store and look up moves in the opening book, sharing mirror images |
 | `2c8c3eb` | Build the opening book by walking every game, resumable |
+| `f4c88c0` | Update journey: speed and the opening book |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -450,7 +465,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
-3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); the opening books are being built (script started on the night of 2026-11-20). Next: check and commit the books, then the Web Worker.*
+3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20. Next: test and commit the books, then the Web Worker.*
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
 6. **Polish and README.**
