@@ -51,8 +51,11 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D21 | **Transposition table:** a fixed-size table indexed by `key % size`, storing only the low 32 bits of the key (`Uint32Array`) and an upper bound on the score (`Uint8Array`, 0 = empty). The size must be an odd number above 2^17 | The slot plus the low 32 bits identify a 49-bit key exactly when the size is odd and above 2^17 (Chinese remainder theorem), so no wrong hit is possible. Storing only upper bounds is what alpha-beta can always prove after a search that found no move above alpha |
 | D22 | **`solve` uses null-window searches** (a binary search on the score, each step asking only "above or below this value?"); the full-window search stays as `solveFullWindow`, a reference in the tests | Narrow windows prune far more. Rounding with `Math.floor` was chosen by measurement over `Math.trunc` (half the explored positions in Middle-Easy) |
 | D23 | **Move ordering:** the search tries only moves that do not let the opponent win at once (`nonLosingColumns`), the ones that make the most threats first (`threatsAfter`), and the centre-first order among equals | The filter alone cut explored positions by 37% but did not save time; with the threat ordering, positions dropped 10–60× on hard opening positions and time 2–150×. Measured before writing it into the project |
-| D24 | **Opening book:** for each position on the computer's turn before move 10, the book stores the computer's move (the best score: fastest win or slowest loss; centre first among equals). A position and its mirror image share one entry. The first move when the computer starts is fixed to the centre, the only winning first move (Allis, 1988). Two books: computer first and player first. Built offline by a resumable script into `public/` as JSON `[key, column]` pairs | Early positions are too slow to solve during a game (minutes or more); after move 10 the solver answers in about a second. Mirror images halve the work and the file. The book is our own output, so it goes into the repo |
+| D24 | **Opening book:** for each position on the computer's turn before move 10, the book stores the computer's move (the best score: fastest win or slowest loss; centre first among equals). A position and its mirror image share one entry. The first move when the computer starts is fixed to the centre, the only winning first move (Allis, 1988). Two books: computer first and player first. Built offline by a resumable script as JSON `[key, column]` pairs (first into `public/`; moved on 2026-11-21, D26) | Early positions are too slow to solve during a game (minutes or more); after move 10 the solver answers in about a second. Mirror images halve the work and the file. The book is our own output, so it goes into the repo |
 | D25 | **Imports in the solver include the `.ts` extension**, so Node 24 runs the TypeScript files directly (type stripping), with no extra tool | The book build runs for hours as a plain Node program, not as a test. `allowImportingTsExtensions` was already on; Vite and Vitest accept both forms |
+| D26 | **The books live in `src/solver/books/` and are imported into the code** (`books.ts`, `loadBooks`), not downloaded from `public/` | They are small (about 70 KB, about 24 KB compressed together with the solver), so there is no separate download that can fail or arrive late. A missing file fails the tests and the build instead of being skipped. `public/` is for files served as they are, and the copies there would have suggested that the site loads them |
+| D27 | **`chooseColumn(moves, books, search)`** holds the whole "which column" logic: it rebuilds the position, refuses illegal moves and finished games, takes the book by the number of moves (even: the computer started), plays the book before move 10, and otherwise calls the `search` it is given | One plain function, tested in Vitest; the Web Worker only wraps it. The search is passed in so that tests which must be answered by the book can pass one that fails at once: with the real search, a wrong book sent a test into a search of the empty board, and the run hung instead of failing |
+| D28 | **The solver runs in a Web Worker** (`solver.worker.ts`): requests `{ id, moves }`, answers `{ id, column }` or `{ id, error }`; one transposition table of 8,388,617 entries (about 40 MB) for the worker's whole life | The page never freezes while the computer thinks. Errors come back as answers with their id, so the page never waits for ever. The table size was chosen by measuring in the browser (see 2026-11-21): 40 MB cut the slowest move tried from 4.4 s to 1.4 s on the PC, and an iPhone 14 handled it |
 
 ---
 
@@ -288,6 +291,49 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
   - A long job on a home PC needs: sleep off, the power-saving mode off while plugged in, Windows updates paused, and a job that can be stopped and continued.
   - A new PowerShell terminal again refused `npm`; `npm.cmd` works.
 
+### 2026-11-21 — Checking the books, choosing a column, and the Web Worker
+- Started with the usual state check (`f4c88c0`, 146 tests, the script and the two books untracked), then committed the updated journal (`e356ce5`).
+- **Backed up the books first:** the script and both books were committed and pushed before writing their test (`f6bbf73`), at the user's request. The files on GitHub were compared byte for byte with the ones on the PC.
+- **A permanent test for the books** (`src/solver/bookFiles.test.ts`, `9014574`): it imports both JSON files directly (so a missing file fails, in CI too, instead of being skipped as `import.meta.glob` would) and checks the number of entries, that every column is 0–6 and every key is the smaller of the two mirror keys, and, walking every game, that all 2,212 and 12,627 positions have a playable column. About 0.2 s. A reverse check (every entry is reached) was discussed and left out for now (see the open items).
+- **A one-off check against the solver** (`scripts/checkBook.ts`, `12490b0`), run once on the PC:
+  - Fast part: 30 random positions after 8 moves (computer first), 30 after 9 (player first), and 30 where the computer-first book ends (after 10): **90 checked, 0 failed**, 1.7 min, slowest 10.3 s. Every edge position is a win for the computer (scores 2 to 16).
+  - Early part (`early`): one position after 4 moves and one after 2 (computer first), one after 5 and one after a single move (player first): **4 checked, 0 failed**, 36.4 min. The heaviest, the reply to a first move in column 5, took 26.6 min; score 1, the computer wins with its last disc, as expected for that losing first move (Allis, 1988).
+  - **Found on the way:** the plan was to require exactly the book's column, and 3 of 60 positions differed (book 4, `bestMove` 2), each time with the same score. Among equal scores `bestMove` takes the first in `COLUMN_ORDER` (3, 2, 4, …), which prefers 2 to 4; a book entry is shared with the mirror image, so it can hold the mirror of that choice. Both moves are perfect, so the check compares **scores**, not columns. In the game, the computer may play 4 in one position and 2 in its mirror; the result is the same.
+- **Moved the books** to `src/solver/books/` with `git mv`, and updated the paths in the test and both scripts (`dbf93bb`, D26). The built site no longer contains JSON files.
+- **`chooseColumn` and `books.ts`** (`725d03a`, D27), 10 tests: the empty board, the book chosen by the number of moves and its mirror images, the book's edge (an invented entry is played after 8 moves and ignored after 10), an empty book falling back to the search, and illegal input (columns 7, -1, 1.5, a full column, a finished game, a move after a win, a full board).
+- **The Web Worker** (`9ec886c`, D28), tried in the browser with a temporary block in `main.ts` (not committed): the right column for every request, the error with its id, and the page stayed responsive.
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| `bookFiles` test walking to depth 11 | Only computer first: positions after 10 moves have no entry. Player first still passed: the computer moves after an odd number of moves, and the next one after 9 is 11 |
+| `checkBook` reading the mirrored column (`6 - column`) | The 2 computer-first positions (`WORSE`); the 2 player-first ones passed, because their book move is the centre, its own mirror |
+| `chooseColumn` using the book at move 10 too (`<=`) | 1 test: the invented entry was played after 10 moves |
+| `chooseColumn` with the two books swapped | First: no failure, the test **hung** (a search of the empty board). After passing a failing search (D27): 4 tests failed within milliseconds |
+
+**Measured** (dev server, median of 3–4 page loads; each load starts the worker with an empty table; the three positions are 10 or 11 moves into a game, just past the book):
+
+| Device, table size | After 10, computer first | After 10, computer first | After 11, player first |
+|---|---|---|---|
+| PC, about 10 MB (2,097,153) | 4,399 ms | 2,121 ms | 1,117 ms |
+| PC, about 20 MB (4,194,305) | 2,710 ms | 1,909 ms | 1,092 ms |
+| PC, about 40 MB (8,388,617) | 1,373 ms | 1,758 ms | 787 ms |
+| iPhone 14 (Safari), about 40 MB | 7,749 ms | 9,867 ms | 4,657 ms |
+
+Book answers took 0–2 ms, and the first request (including the worker starting and creating its table) 20–130 ms, with no visible difference between table sizes. Page loads differed by 2–5%. The iPhone was 5.6–5.9× slower than the PC and showed no memory problem with 40 MB.
+
+**Lessons:**
+- The transposition table is not downloaded: it is created empty on the device. Its cost is memory, not loading time.
+- Up to about 10 s of waiting on a phone right after the book is too long for visitors from LinkedIn; the next planning step is how to shorten it (a deeper book is the strongest option; small speed-ups exist).
+- A check that two moves are "the same" must allow for ties; what matters is the score.
+- A bug that sends a test into a long search makes the run hang rather than fail, and Vitest's time limit cannot stop code that never yields. Pass the slow part in, so tests can replace it with something that fails at once.
+- `git status` cannot show whether a deliberate break was reverted in a file that is not tracked yet; compare the file's contents instead.
+- A new PowerShell terminal now refuses `npx` as well as `npm`; `npx.cmd` works.
+- On request, Claude made some edits directly in the project folder through the desktop app's file bridge; the user ran the tests and all Git commands. Once, a write reported success but left the old content (the same staging path was reused); comparing checksums caught it, and a fresh path fixed it.
+- `npm run dev -- --host` lists several network addresses; the phone needs the one marked Wi-Fi (`192.168.56.1` belonged to a virtual adapter).
+- Predictions that were wrong: `git status` lists a new folder (`scripts/`) rather than the file inside it; `git grep "public/book"` found nothing in the journal, which only ever wrote `public/`.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -337,6 +383,10 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 - Design a social preview image for the repo (shown when the link is shared on LinkedIn).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
 - GitHub notes that `ubuntu-latest` is moving to Ubuntu 26. The workflow uses only Node, npm and Vite, so no change is expected.
+- The book depth 10 is written in four places: `BOOK_DEPTH` in `books.ts`, and its own constant in `bookFiles.test.ts`, `buildBook.ts` and `checkBook.ts`; make them all use `BOOK_DEPTH` (a separate commit).
+- Optional: in `bookFiles.test.ts`, also check that every entry is reached by the walk (no unused entries).
+- Ties between columns are not broken the same way in a position and its mirror (2 is preferred to 4); harmless, noted in case it ever matters.
+- `chooseColumn.test.ts` has its own `play` helper too (see the shared helpers above).
 
 ## Phase 4 — Game logic and unit tests (2026-11-09 → 2026-11-10)
 
@@ -363,7 +413,7 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 **What was built:**
 - `src/solver/position.ts` (the shared interface) and `src/solver/pairPosition.ts` (the fast board), with `nonLosingColumns` and `threatsAfter` on both boards.
 - `src/solver/transpositionTable.ts`; in `negamax.ts`: the window cap, null-window `solve`, `orderMoves` and `bestMove`.
-- `src/solver/openingBook.ts`: mirror images, storing and looking up moves, and the resumable build; `scripts/buildBook.ts` and the two books in `public/` (built on 2026-11-20, not committed yet).
+- `src/solver/openingBook.ts`: mirror images, storing and looking up moves, and the resumable build; `scripts/buildBook.ts` and the two books (built on 2026-11-20, committed on 2026-11-21, now in `src/solver/books/`).
 - `src/solver/search.measure.ts` and `npm run measure`.
 - 146 tests in 12 files; in CI the 4 tests that read the published files are skipped.
 
@@ -372,6 +422,19 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 **Built on 2026-11-20:** the computer-first book (825 entries, about 1 h 50 min) and the player-first book (3,032 entries, about 5 h 50 min), both covering every position on the computer's turn before move 10.
 
 **Next:** test both books, commit them with the script, then the Web Worker and the game page.
+
+## Phase 7 — Solver in the browser (2026-11-21)
+
+**What was built:**
+- `src/solver/bookFiles.test.ts`: a permanent check of both book files, in every test run and in CI.
+- `scripts/checkBook.ts`: a one-off check of a sample of entries against the solver (94 positions, none wrong).
+- `src/solver/books.ts` (`loadBooks`, `BOOK_DEPTH`) and `src/solver/chooseColumn.ts`, with tests.
+- `src/solver/solver.worker.ts`: the solver in a Web Worker, with a 40 MB transposition table.
+- 160 tests in 14 files; in CI the 4 tests that read the published files are skipped.
+
+**Measured:** answers from the book in 0–2 ms; just after the book, about 0.8–1.8 s on the PC and 4.7–9.9 s on an iPhone 14.
+
+**Next:** plan how to shorten the wait on a phone just after the book (a deeper book, speed-ups, or both), then the design stage.
 
 ---
 
@@ -456,6 +519,13 @@ On a slower scratch machine, Begin-Hard positions after 3 to 7 moves took 3–40
 | `6998d87` | Store and look up moves in the opening book, sharing mirror images |
 | `2c8c3eb` | Build the opening book by walking every game, resumable |
 | `f4c88c0` | Update journey: speed and the opening book |
+| `e356ce5` | Update journey: building the opening books |
+| `f6bbf73` | Add the opening books and the script that builds them |
+| `9014574` | Check both opening book files in every test run |
+| `12490b0` | Check a sample of the opening books against the solver |
+| `dbf93bb` | Move the opening books next to the solver that imports them |
+| `725d03a` | Choose the computer's column: the opening book first, then the search |
+| `9ec886c` | Run the solver in a Web Worker, with a 40 MB table chosen by measurement |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -465,7 +535,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
-3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20. Next: test and commit the books, then the Web Worker.*
+3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20, checked and committed 2026-11-21; `chooseColumn` and the Web Worker done 2026-11-21. Next: shorten the wait on a phone just after the book.*
 4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
 5. **UI:** implement the design, animations, responsive layout, touch input.
 6. **Polish and README.**
