@@ -140,7 +140,9 @@ export class GameView {
     this.chooseTitle.textContent = strings.whoGoesFirst;
     this.humanFirstLabel.textContent = strings.iGoFirst;
     this.computerFirstLabel.textContent = strings.computerGoesFirst;
-    this.chooseExplanation.textContent = strings.startExplanation;
+    this.chooseExplanation.replaceChildren(
+      ...strings.startExplanation.map((line) => h('span', { class: 'line' }, line)),
+    );
     this.legendYou.textContent = strings.you;
     this.legendComputer.textContent = strings.computer;
     this.newGameButton.textContent = strings.newGame;

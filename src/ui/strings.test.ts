@@ -6,7 +6,7 @@ const VERSIONS = Object.entries(ALL_STRINGS) as [string, Strings][];
 /** The texts in one entry, with functions called on sample numbers. */
 function textsOf(value: Strings[keyof Strings]): string[] {
   if (typeof value === 'function') return [value(1), value(7)];
-  if (Array.isArray(value)) {
+  if (typeof value !== 'string') {
     return value.flatMap((item) => (typeof item === 'string' ? [item] : [item.value, item.label]));
   }
   return [value];
@@ -57,6 +57,14 @@ describe('strings', () => {
       (key) => textsOf(heMasculine[key]).join('|') !== textsOf(heFeminine[key]).join('|'),
     );
     expect(changed.sort()).toEqual([...ADDRESSED_KEYS].sort());
+  });
+
+  it('explains who can win in two lines, the computer first', () => {
+    for (const [, strings] of VERSIONS) {
+      expect(strings.startExplanation).toHaveLength(2);
+    }
+    // Only the second line addresses the player, so the first is the same in both Hebrew versions.
+    expect(ALL_STRINGS.heFeminine.startExplanation[0]).toBe(ALL_STRINGS.heMasculine.startExplanation[0]);
   });
 
   it('counts the moves the player lasted, one or many', () => {

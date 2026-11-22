@@ -24,7 +24,8 @@ export type Strings = {
   whoGoesFirst: string;
   iGoFirst: string;
   computerGoesFirst: string;
-  startExplanation: string;
+  /** Shown under the two choices, one line each: the computer first, then the player. */
+  startExplanation: readonly [string, string];
   /** Shown during a game the computer started. */
   computerStartedMessage: string;
   /** Shown during a game the player started. */
@@ -78,8 +79,10 @@ const en: Strings = {
   whoGoesFirst: 'Who goes first?',
   iGoFirst: 'I go first',
   computerGoesFirst: 'Computer goes first',
-  startExplanation:
-    'If the computer goes first, it always wins. If you go first, you can win, but only with a perfect game.',
+  startExplanation: [
+    'If the computer goes first, it always wins.',
+    'If you go first, you can win, but only with a perfect game.',
+  ],
   computerStartedMessage: 'You’re going to lose. Let’s see how long you can survive.',
   playerStartedMessage: 'You can win, but only with a perfect game.',
 
@@ -138,7 +141,7 @@ const heMasculine: Strings = {
   whoGoesFirst: 'מי מתחיל?',
   iGoFirst: 'אני מתחיל',
   computerGoesFirst: 'המחשב מתחיל',
-  startExplanation: 'אם המחשב מתחיל, הוא תמיד מנצח. אם אתה מתחיל, תוכל לנצח, אבל רק במשחק מושלם.',
+  startExplanation: ['אם המחשב מתחיל, הוא תמיד מנצח.', 'אם אתה מתחיל, תוכל לנצח, אבל רק במשחק מושלם.'],
   computerStartedMessage: 'אתה הולך להפסיד, אבל בוא נראה כמה זמן תצליח לשרוד.',
   playerStartedMessage: 'תוכל לנצח רק אם תשחק משחק מושלם.',
 
@@ -206,7 +209,7 @@ const heFeminine: Strings = {
   ...heMasculine,
   subtitle: 'את מול פותר מושלם.',
   iGoFirst: 'אני מתחילה',
-  startExplanation: 'אם המחשב מתחיל, הוא תמיד מנצח. אם את מתחילה, תוכלי לנצח, אבל רק במשחק מושלם.',
+  startExplanation: ['אם המחשב מתחיל, הוא תמיד מנצח.', 'אם את מתחילה, תוכלי לנצח, אבל רק במשחק מושלם.'],
   computerStartedMessage: 'את הולכת להפסיד, אבל בואי נראה כמה זמן תצליחי לשרוד.',
   playerStartedMessage: 'תוכלי לנצח רק אם תשחקי משחק מושלם.',
   you: 'את',

@@ -595,6 +595,11 @@ a:hover {
   color: var(--muted);
 }
 
+.choose-explanation .line {
+  display: block;
+  text-wrap: pretty;
+}
+
 /* On a phone: who is who and "New game" share a row; "Play again" takes a row of its own. */
 .game-controls {
   display: flex;
