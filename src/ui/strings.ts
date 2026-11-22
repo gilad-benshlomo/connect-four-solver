@@ -85,7 +85,7 @@ const en: Strings = {
     'If the computer goes first, it always wins.',
     'If you go first, you can win, but only with a perfect game.',
   ],
-  computerStartedMessage: 'You’re going to lose. Let’s see how long you can survive.',
+  computerStartedMessage: 'You’re going to lose, but let’s see how long you can survive.',
   playerStartedMessage: 'You can win, but only with a perfect game.',
 
   yourTurn: 'Your turn',
