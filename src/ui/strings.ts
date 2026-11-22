@@ -111,7 +111,7 @@ const en: Strings = {
   boardLabel: 'Game board',
   dropInColumn: (column) => `Drop a disc in column ${column}`,
 
-  howToPlay: 'How to play',
+  howToPlay: 'How to play & about the computer',
   rulesTitle: 'How to play',
   rules: [
     'Two players take turns dropping discs into one of the seven columns.',
@@ -174,7 +174,7 @@ const heMasculine: Strings = {
   boardLabel: 'לוח המשחק',
   dropInColumn: (column) => `הטלת דיסקית לעמודה ${column}`,
 
-  howToPlay: 'איך משחקים',
+  howToPlay: 'איך משחקים ועל המחשב',
   rulesTitle: 'איך משחקים',
   rules: [
     'שני שחקנים מטילים דיסקיות לסירוגין לאחת משבע העמודות.',
