@@ -59,7 +59,9 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D29 | **The fonts are served by the site itself** (`@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-sans-hebrew`, OFL licence), and only their Latin and Hebrew letters are shipped | No request to an outside server: faster on a phone, works where Google is blocked, and no tracking. The browser downloads only the letters it needs. The first build shipped every alphabet (1.2 MB of files); keeping two cut the site to about 390 KB |
 | D30 | **The page is plain TypeScript and DOM, no framework.** Everything that decides lives in modules with no DOM and is tested in Vitest (`strings`, `flow`, `solverClient`, `status`, `settings`); the view (`view`, `boardView`, `rulesDialog`) only shows, and is checked in Chrome with screenshots | One screen does not need a framework, and the site stays small. Testing the view itself would need a fake browser package; the logic around it is covered instead |
 | D31 | **The board is three layers:** the discs, a blue face with transparent holes drawn over them, and seven invisible column buttons on top | A falling disc passes behind the face, as in the real game; the buttons make every column a real control for mouse, touch and keyboard |
-| D32 | **Language and form of address:** the first visit follows the browser's language (Hebrew or English); the player's choice is then kept in the browser's storage. Hebrew has a masculine and a feminine version of the texts that address the player, chosen next to "who goes first" | No extra step before playing; a returning player finds the page as they left it. Storage may be blocked, so every use of it falls back quietly |
+| D32 | **Language and form of address:** the first visit is in Hebrew, addressed in the masculine (until 2026-11-22 it followed the browser's language); the player's choice is then kept in the browser's storage. Hebrew has a masculine and a feminine version of the texts that address the player, chosen next to "who goes first" | No extra step before playing; a returning player finds the page as they left it. Storage may be blocked, so every use of it falls back quietly |
+| D33 | **"How to play" opens by itself once per visit**, kept in `sessionStorage` (a reload or a new game does not open it again; a new tab or browser session does). When the page opens it, the focus goes to the window itself, not to the close button | Visitors from a CV read what the project is before they play. Opening it before every game would be annoying; `sessionStorage` matches "a visit" with no code to expire it |
+| D34 | **Fireworks:** where and when the bursts go off and how the sparks move are pure functions (`fireworks.ts`, tested); `fireworksView.ts` only draws them on a canvas over the board. 15 s for a win, 4 s for a draw, at the same pace; nothing with reduced motion; clicks pass through | The same split as D30: what can be tested is tested, the drawing is checked by screenshots. The win lasts long enough to enjoy and to take a screenshot |
 
 ---
 
@@ -389,13 +391,55 @@ Then, from checking in the browser: the solver client now fails at once when the
 - A button that is hidden keeps the focus until the browser's next frame, so "nothing has the focus" also checks for a hidden or disabled element.
 - In Hebrew, the chosen "נקבה" button showed dark text on its dark background.
 
-**Measured:** the site builds to about 390 KB, of which the page's code is about 16 KB (about 6 KB compressed), the solver's worker about 75 KB, and the styles about 12 KB. On a scripted replay of the slow position from 2026-11-21 (`[3, 2, 5, 2, 2, 3, 3, 6, 5, 5]`), the computer thought for 3.6 s in Chrome in Claude's environment, and the "takes a moment" line appeared. All text reaches a contrast of at least 5.4:1.
+**Measured:** the site builds to about 390 KB, of which the page's code is about 23 KB (about 7.7 KB compressed; first written here as 16 KB and 6 KB, corrected the same evening), the solver's worker about 75 KB, and the styles about 12 KB. On a scripted replay of the slow position from 2026-11-21 (`[3, 2, 5, 2, 2, 3, 3, 6, 5, 5]`), the computer thought for 3.6 s in Chrome in Claude's environment, and the "takes a moment" line appeared. All text reaches a contrast of at least 5.4:1.
 
 **Lessons:**
 - Check colour blindness by numbers (lightness ratios under simulation) before adding marks to a design.
 - An older npm rewrote unrelated lines of `package-lock.json`; the new entries were added by hand to the original file instead, so the diff holds only the two packages.
 - A test that the logic covers does not catch a page that waits for ever; blocking a file in the browser did.
 - A scripted player that plays the same columns loses within the book; a player that blocks and takes immediate wins reaches the solver.
+
+### 2026-11-22 (afternoon) — Review, polish, and the page goes live
+**First review.** The user pulled the bundle, ran the tests and the build on his PC, and played it with two friends on two PCs and two phones: "amazing and addictive". Their notes, all built the same afternoon (same discipline: code, tests, a deliberate break, a commit; delivered as bundles):
+- **Thin lines on the board** (`ccd0540`): on displays scaled to 110–150%, the hole cells met at fractional pixels and light seams showed between them. A script counted full lines of non-blue pixels: 17 vertical and 17 horizontal before, none after, at 11 sizes and scales. The edge stripes now overlap the holes by 2px and each hole cell casts 1px of blue.
+- **The start explanation on two lines** (`8c6b261`): one for a game the computer starts, one for a game the player starts.
+- **New texts for a draw and a win** (`74a047a`), worded together with the user: a draw means not one losing move; a win names the perfect solver and counts the player's moves ("Not one of your N moves let the win slip").
+- **Fireworks for a win** (`41f7a99`), then **15 s for a win and 4 s for a draw** (`ab7abee`) (D34).
+- **At least one second per computer turn** (`0d60745`), instead of 0.55 s: the book answers at once, and the computer seemed not to think. Measured: 1.04–1.06 s per turn.
+
+**Pushed and checked live** (the first time the new page was online): `c14894d..ab7abee`. The user checked the live site on the PC and on a phone; the computer answered quickly on both.
+
+**The window about the computer** (`4052d8f`), worded by the user over several drafts:
+- Two paragraphs: what the solver can do (Allen and Allis proved that the first player wins with no mistakes; this computer makes none; if you start, one mistake and the win is gone: at best, a draw), then how it is built to decide fast (two numbers for the board, threatening moves first, branches that provably cannot change the result skipped, positions remembered, the opening solved in advance, the search apart from the page).
+- Every technical claim was checked against the code first. "Takes symmetry into account" was left out: symmetry is used only in the opening book, not in the search on every turn. "The fastest there is" was not written, since it cannot be shown.
+- The exact count of positions, 4,531,985,219,092, on a row of its own instead of "4.5 trillion"; "3,857 opening positions solved in advance"; 1988 kept. Considered and left for later: "3,000× faster than the solver's first version" (337 ms to 0.11 ms per Middle-Easy position).
+- The window opens by itself once per visit (D33). The English message after the computer starts now reads "You're going to lose, but let's see how long you can survive." (`c82e7d6`).
+
+**Then:** every new player starts in Hebrew, masculine (`e5e108d`, D32 changed), and the footer link reads "How to play & about the computer" / "איך משחקים ועל המחשב" (`f8ff07b`). Pushed (`ab7abee..c82e7d6`, then `c82e7d6..f8ff07b`) and checked live.
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| "היא תמיד מנצח" in the feminine explanation | The test that the first line is the same in both Hebrew versions |
+| The draw message left out of the addressed texts | The test that only addressed texts differ |
+| The last burst 200 ms before the end of the show | The test that every spark fades before the end |
+| A fixed number of bursts for any length | The test that a longer show keeps the same pace |
+| The once-per-visit check inverted | 2 tests, as predicted |
+| English as the default | 2 tests, as predicted |
+
+**Found in the browser, not by the tests:**
+- The first fireworks were thin and small; they were made larger and given a glow before the user saw them. In the 15 s show, sparks were cut off at the bottom of the canvas; they now fade near its edges.
+- To check the end of a game without beating the solver, the screenshot scripts replace the worker with a fake one that plays fixed moves (only in the scripts, never in the code).
+- A check of two games side by side reported no fireworks after a win: the draw game took 20 s longer, so the win's 15 s show had already ended. Checked alone, it lasted from 0 to 15 s as designed.
+
+**Measured:** the page's code is now about 28 KB (about 9.6 KB compressed). Tests: 227 here, 231 on the user's PC (with the 4 that read the published benchmark files).
+
+**Lessons:**
+- A thin line that appears only on some screens is a scaling seam: check at fractional display scales (110%, 125%, 150%), not only at 100%.
+- A text in the page that makes a technical claim is checked against the code, like any other claim.
+- A timing check that runs two pages side by side waits for the slower one; check timings one at a time.
+- Wording takes as many rounds as code; small changes ("but", a comma, the order of two clauses) change the tone.
 
 ---
 
@@ -508,8 +552,9 @@ Then, from checking in the browser: the solver client now fails at once when the
 - An approved design: desktop and phone, in both languages, for every state of the game.
 - `src/ui/`: `strings`, `flow`, `solverClient`, `status`, `settings` (logic, with tests), and `view`, `boardView`, `rulesDialog`, `app`, `dom` (the page); `src/style.css`; `src/main.ts` wires the worker and the app.
 - 211 tests in 20 files; in CI the 4 tests that read the published files are skipped.
+- After the review (afternoon): `fireworks`, `fireworksView`, the once-per-visit window and the new texts; 227 tests in 21 files (231 with the published files).
 
-**Next:** review the work together, push it, and check it live on a phone; then polish (README, a social preview image) and the postponed phone wait.
+**Live since 2026-11-22.** **Next:** the last polish (README, a social preview image, the GitHub page), then the postponed phone wait if it is still needed.
 
 ---
 
@@ -617,6 +662,17 @@ Then, from checking in the browser: the solver client now fails at once when the
 | `4fec0eb` | Label the button after an error "New game", as the message says |
 | `e43b229` | Remove a class the stylesheet never used |
 | `fa7a0f3` | Ship only the Latin and Hebrew letters of the fonts |
+| `3ece834` | Update journey: design and the game page |
+| `ccd0540` | Fix thin seams across the board on scaled screens |
+| `8c6b261` | Show the start explanation on two lines |
+| `74a047a` | New texts for a draw and for a win |
+| `41f7a99` | Fireworks when the player wins |
+| `0d60745` | Give the computer at least one second per turn |
+| `ab7abee` | Longer fireworks for a win, shorter ones for a draw |
+| `4052d8f` | Open the window about the game on every visit, with a new about text |
+| `c82e7d6` | Join the English message for a game the computer starts with "but" |
+| `e5e108d` | Start every new player in Hebrew, addressed in the masculine |
+| `f8ff07b` | Name the footer link after both parts of its window |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -628,5 +684,5 @@ The Python prototype remains in the history at `47bbc6f`.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
 3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20, checked and committed 2026-11-21; `chooseColumn` and the Web Worker done 2026-11-21. Still open: shorten the wait on a phone just after the book (postponed).*
 4. ~~**Design:** visual style and a mockup for desktop and phone, approved before any UI code.~~ Done 2026-11-22.
-5. **UI:** implement the design, animations, responsive layout, touch input. *Built 2026-11-22 (stages 1–8); next: review, push, and check live on a phone.*
+5. ~~**UI:** implement the design, animations, responsive layout, touch input.~~ Built 2026-11-22, reviewed, polished and live the same day.
 6. **Polish and README.**
