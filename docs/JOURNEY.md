@@ -56,6 +56,10 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D26 | **The books live in `src/solver/books/` and are imported into the code** (`books.ts`, `loadBooks`), not downloaded from `public/` | They are small (about 70 KB, about 24 KB compressed together with the solver), so there is no separate download that can fail or arrive late. A missing file fails the tests and the build instead of being skipped. `public/` is for files served as they are, and the copies there would have suggested that the site loads them |
 | D27 | **`chooseColumn(moves, books, search)`** holds the whole "which column" logic: it rebuilds the position, refuses illegal moves and finished games, takes the book by the number of moves (even: the computer started), plays the book before move 10, and otherwise calls the `search` it is given | One plain function, tested in Vitest; the Web Worker only wraps it. The search is passed in so that tests which must be answered by the book can pass one that fails at once: with the real search, a wrong book sent a test into a search of the empty board, and the run hung instead of failing |
 | D28 | **The solver runs in a Web Worker** (`solver.worker.ts`): requests `{ id, moves }`, answers `{ id, column }` or `{ id, error }`; one transposition table of 8,388,617 entries (about 40 MB) for the worker's whole life | The page never freezes while the computer thinks. Errors come back as answers with their id, so the page never waits for ever. The table size was chosen by measuring in the browser (see 2026-11-21): 40 MB cut the slowest move tried from 4.4 s to 1.4 s on the PC, and an iPhone 14 handled it |
+| D29 | **The fonts are served by the site itself** (`@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-sans-hebrew`, OFL licence), and only their Latin and Hebrew letters are shipped | No request to an outside server: faster on a phone, works where Google is blocked, and no tracking. The browser downloads only the letters it needs. The first build shipped every alphabet (1.2 MB of files); keeping two cut the site to about 390 KB |
+| D30 | **The page is plain TypeScript and DOM, no framework.** Everything that decides lives in modules with no DOM and is tested in Vitest (`strings`, `flow`, `solverClient`, `status`, `settings`); the view (`view`, `boardView`, `rulesDialog`) only shows, and is checked in Chrome with screenshots | One screen does not need a framework, and the site stays small. Testing the view itself would need a fake browser package; the logic around it is covered instead |
+| D31 | **The board is three layers:** the discs, a blue face with transparent holes drawn over them, and seven invisible column buttons on top | A falling disc passes behind the face, as in the real game; the buttons make every column a real control for mouse, touch and keyboard |
+| D32 | **Language and form of address:** the first visit follows the browser's language (Hebrew or English); the player's choice is then kept in the browser's storage. Hebrew has a masculine and a feminine version of the texts that address the player, chosen next to "who goes first" | No extra step before playing; a returning player finds the page as they left it. Storage may be blocked, so every use of it falls back quietly |
 
 ---
 
@@ -334,6 +338,65 @@ Book answers took 0–2 ms, and the first request (including the worker starting
 - `npm run dev -- --host` lists several network addresses; the phone needs the one marked Wi-Fi (`192.168.56.1` belonged to a virtual adapter).
 - Predictions that were wrong: `git status` lists a new folder (`scripts/`) rather than the file inside it; `git grep "public/book"` found nothing in the journal, which only ever wrote `public/`.
 
+### 2026-11-22 — Design, then the whole page
+**The phone wait, postponed.** Right after the book the computer can think for up to about 10 s on a phone. Decided to finish the game first and come back to it on a day with a few free hours: a deeper book changes only what is behind `chooseColumn` (D7), not the page. Worked out that the depth grows in steps of two (the book holds only the computer's moves): depth 12 adds one computer move to each book, depth 13 only to the player-first one. Plan for that day: measure positions after 12 moves on the PC and the iPhone first, then choose 12 or 14.
+
+**Design (approved before any UI code).** A canvas with desktop and phone screens for every state: who goes first, your turn, computer thinking, computer wins, how to play. Decisions along the way, all the user's:
+- Both English and Hebrew, chosen by the player; Hebrew right to left, the board never mirrored.
+- The classic look: a blue board with red and yellow discs. The player is always red, the computer always yellow.
+- First drawn with a ring and an X on the discs, for colour blindness. Measured instead: the lightness ratio between the two colours, simulated for the three main kinds of colour blindness, was 2.3 to 3.4. A slightly deeper red (`#C41E26`) raised it to 3.0 to 4.7 in all of them, so the marks were dropped and the winning four are also outlined.
+- Font: four pairs were compared side by side in both scripts; IBM Plex Sans with IBM Plex Sans Hebrew was chosen.
+- "How to play" in a window: four rules and a panel about the computer with three real numbers (4.5 trillion positions, 3,857 opening positions computed in advance, 1988).
+- The player picks the Hebrew form of address (masculine or feminine) next to "who goes first", not in a window that pops up first.
+- After the computer starts: "You're going to lose. Let's see how long you can survive."; at the end, "You lasted N moves."
+- The credit to Pascal Pons stays in the README only.
+
+**The page, in eight stages** (each: code, tests, a deliberate break, a commit; built by Claude on a copy of the repository and delivered as a Git bundle for review):
+1. `strings.ts`: every text in English, Hebrew masculine and Hebrew feminine; only six texts differ between the two Hebrew versions, and a test checks that no other does (`b777ecf`).
+2. `flow.ts`: who goes first, turns, the end of a game and errors, as states; an action that does not apply returns the same state, and an answer for an abandoned game is ignored by its id. 300 random whole games in the tests (`e81e300`).
+3. `solverClient.ts`: each question to the worker is a promise, matched to its answer by id (`7b04bca`).
+4. The layout, colours and self-hosted fonts (D29) (`77ac6cb`).
+5. The board (D31): discs fall behind the face and bounce once; a waiting disc and a highlighted column on hover or keyboard focus; arrows and Enter to play (`bfeb133`).
+6. `app.ts` and `status.ts`: the computer plays through the worker; while it thinks its disc sways above the board, and after 3 s a line says that perfect play takes a moment; its disc never lands sooner than 0.55 s after the player's, so the player's disc lands first (`2bccea8`).
+7. The choice of who goes first, the legend, "New game" and "Play again"; going back to the choice clears the board; the keyboard focus follows the game (`08b4b92`).
+8. `settings.ts` and `rulesDialog.ts`: the language switch, the form of address, and "How to play" as a native modal dialog (D32) (`2674195`).
+
+Then, from checking in the browser: the solver client now fails at once when the worker has stopped (`2c32dfb`), the button after an error says "New game" like its message (`4fec0eb`), an unused class was removed (`e43b229`), and only the Latin and Hebrew letters of the fonts are shipped (`fa7a0f3`).
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| "אתה" left in the feminine version | The test that only addressed texts differ |
+| An English rule left in Hebrew | The test that Hebrew texts contain Hebrew letters |
+| A rule missing from Hebrew | The test that both languages have as many rules |
+| The player's moves counted for the wrong side | The counting test |
+| Every win recorded as the player's | 2 tests: the computer's win, and the 300 random games |
+| No check of the game id on the computer's answer | 1 test (2 were predicted: the other answer was already refused because the phase had changed) |
+| Answers matched to the oldest question, not by id | 2 tests |
+| The caller's list of moves sent instead of a copy | 1 test |
+| Open questions not cleared after a crash | 1 test |
+| A disc animated for any longer list of moves | The test with a different game of the next length |
+| No "perfect play takes a moment" | 1 test |
+| The two start messages swapped | 3 tests |
+| Going back to the choice keeping the old board | 1 test |
+| Hebrew chosen if it appears anywhere in the browser's languages | 1 test |
+| Saved settings read without catching errors | 2 tests |
+
+**Found in the browser, not by the tests:**
+- With the worker's file missing, the game waited for ever: the worker failed before anything was asked, so the questions after it had no one to fail them. A test was written and seen to fail first (it timed out), then the fix.
+- Focus moved by the page after a mouse click showed the waiting disc in column 1; it is now shown only for keyboard focus.
+- A button that is hidden keeps the focus until the browser's next frame, so "nothing has the focus" also checks for a hidden or disabled element.
+- In Hebrew, the chosen "נקבה" button showed dark text on its dark background.
+
+**Measured:** the site builds to about 390 KB, of which the page's code is about 16 KB (about 6 KB compressed), the solver's worker about 75 KB, and the styles about 12 KB. On a scripted replay of the slow position from 2026-11-21 (`[3, 2, 5, 2, 2, 3, 3, 6, 5, 5]`), the computer thought for 3.6 s in Chrome in Claude's environment, and the "takes a moment" line appeared. All text reaches a contrast of at least 5.4:1.
+
+**Lessons:**
+- Check colour blindness by numbers (lightness ratios under simulation) before adding marks to a design.
+- An older npm rewrote unrelated lines of `package-lock.json`; the new entries were added by hand to the original file instead, so the diff holds only the two packages.
+- A test that the logic covers does not catch a page that waits for ever; blocking a file in the browser did.
+- A scripted player that plays the same columns loses within the book; a player that blocks and takes immediate wins reaches the solver.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -386,7 +449,10 @@ Book answers took 0–2 ms, and the first request (including the worker starting
 - The book depth 10 is written in four places: `BOOK_DEPTH` in `books.ts`, and its own constant in `bookFiles.test.ts`, `buildBook.ts` and `checkBook.ts`; make them all use `BOOK_DEPTH` (a separate commit).
 - Optional: in `bookFiles.test.ts`, also check that every entry is reached by the walk (no unused entries).
 - Ties between columns are not broken the same way in a position and its mirror (2 is preferred to 4); harmless, noted in case it ever matters.
-- `chooseColumn.test.ts` has its own `play` helper too (see the shared helpers above).
+- `chooseColumn.test.ts` has its own `play` helper too (see the shared helpers above); so do `flow.test.ts` and `status.test.ts`.
+- Shorten the wait on a phone just after the book (postponed on 2026-11-22; see that entry).
+- The board is not described to screen readers: the columns are labelled buttons and the status is announced, but the discs are not. Consider a text summary of each column.
+- After the computer moves, keyboard focus returns to the column it was on; consider announcing the computer's column too.
 
 ## Phase 4 — Game logic and unit tests (2026-11-09 → 2026-11-10)
 
@@ -436,6 +502,15 @@ Book answers took 0–2 ms, and the first request (including the worker starting
 
 **Next:** plan how to shorten the wait on a phone just after the book (a deeper book, speed-ups, or both), then the design stage.
 
+## Phase 8 — Design and the game page (2026-11-22)
+
+**What was built:**
+- An approved design: desktop and phone, in both languages, for every state of the game.
+- `src/ui/`: `strings`, `flow`, `solverClient`, `status`, `settings` (logic, with tests), and `view`, `boardView`, `rulesDialog`, `app`, `dom` (the page); `src/style.css`; `src/main.ts` wires the worker and the app.
+- 211 tests in 20 files; in CI the 4 tests that read the published files are skipped.
+
+**Next:** review the work together, push it, and check it live on a phone; then polish (README, a social preview image) and the postponed phone wait.
+
 ---
 
 ## Tools used so far
@@ -459,6 +534,9 @@ Book answers took 0–2 ms, and the first request (including the worker starting
 | GitHub Actions extension (VS Code) | 0.32.3 | Validates workflow files in the editor | In use |
 | Vitest | 5.1.0 | Unit tests | In use |
 | Node type stripping | (Node 24) | Runs `scripts/buildBook.ts` straight from TypeScript | In use |
+| Fontsource (IBM Plex Sans, IBM Plex Sans Hebrew) | 5.3.0 | Self-hosted fonts (D29) | In use |
+| Claude design canvas | — | The approved design, before any UI code | Used for the design |
+| Chrome without a window (Playwright) | — | Screenshots and scripted games while building the page | Used by Claude |
 | Benchmark sets (Pascal Pons) | — | Published positions with exact scores, for tests and measurement | In use, local only (D18) |
 
 ## Commit history
@@ -526,6 +604,19 @@ Book answers took 0–2 ms, and the first request (including the worker starting
 | `dbf93bb` | Move the opening books next to the solver that imports them |
 | `725d03a` | Choose the computer's column: the opening book first, then the search |
 | `9ec886c` | Run the solver in a Web Worker, with a 40 MB table chosen by measurement |
+| `c14894d` | Update journey: checking the books and the Web Worker |
+| `b777ecf` | Add the page's texts in English and in Hebrew, masculine and feminine |
+| `e81e300` | Add the game flow: who goes first, turns, the end of a game, and errors |
+| `7b04bca` | Ask the solver worker through promises, matched to answers by id |
+| `77ac6cb` | Lay out the page with the design's colours and self-hosted IBM Plex fonts |
+| `bfeb133` | Draw the board with discs that fall behind its face, playable by mouse, touch and keyboard |
+| `2bccea8` | Play against the solver in its worker, showing the computer thinking |
+| `08b4b92` | Choose who goes first, end the game with its result, and play again |
+| `2674195` | Add how to play, a language switch, and the Hebrew form of address, kept for the next visit |
+| `2c32dfb` | Fail every later question once the solver worker has stopped, instead of waiting for ever |
+| `4fec0eb` | Label the button after an error "New game", as the message says |
+| `e43b229` | Remove a class the stylesheet never used |
+| `fa7a0f3` | Ship only the Latin and Hebrew letters of the fonts |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -535,7 +626,7 @@ The Python prototype remains in the history at `47bbc6f`.
 
 1. ~~**Setup (TypeScript):** remove the Python prototype → create a Vite + TypeScript project → run locally → first deploy to GitHub Pages, checked on desktop and phone.~~ Done 2026-11-09.
 2. ~~**Game logic** with unit tests.~~ Done 2026-11-10.
-3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20, checked and committed 2026-11-21; `chooseColumn` and the Web Worker done 2026-11-21. Next: shorten the wait on a phone just after the book.*
-4. **Design:** visual style and a mockup for desktop and phone, approved before any UI code.
-5. **UI:** implement the design, animations, responsive layout, touch input.
+3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20, checked and committed 2026-11-21; `chooseColumn` and the Web Worker done 2026-11-21. Still open: shorten the wait on a phone just after the book (postponed).*
+4. ~~**Design:** visual style and a mockup for desktop and phone, approved before any UI code.~~ Done 2026-11-22.
+5. **UI:** implement the design, animations, responsive layout, touch input. *Built 2026-11-22 (stages 1–8); next: review, push, and check live on a phone.*
 6. **Polish and README.**
