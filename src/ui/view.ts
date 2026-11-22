@@ -3,6 +3,7 @@
  * texts or the game change. All decisions are made elsewhere (flow.ts,
  * strings.ts); this file only shows them.
  */
+import { BoardView } from './boardView';
 import { h } from './dom';
 import type { Language, Strings } from './strings';
 
@@ -15,7 +16,8 @@ export class GameView {
   private readonly languageGroup = h('div', { class: 'segmented language', role: 'group', dir: 'ltr' });
   private readonly englishButton = h('button', { type: 'button', class: 'segment', lang: 'en' }, 'EN');
   private readonly hebrewButton = h('button', { type: 'button', class: 'segment', lang: 'he' }, 'עב');
-  private readonly play = h('div', { class: 'play' });
+  readonly board = new BoardView();
+  private readonly play = h('div', { class: 'play' }, this.board.root);
   private readonly rulesButton = h('button', { type: 'button', class: 'text-button' });
   private readonly sourceLink = h('a', { class: 'source-link', href: SOURCE_URL });
 
@@ -47,5 +49,6 @@ export class GameView {
     this.hebrewButton.setAttribute('aria-pressed', String(language === 'he'));
     this.rulesButton.textContent = strings.howToPlay;
     this.sourceLink.textContent = strings.sourceCode;
+    this.board.setStrings(strings);
   }
 }

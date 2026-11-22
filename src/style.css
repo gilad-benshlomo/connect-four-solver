@@ -196,3 +196,206 @@ a:hover {
   align-items: center;
   min-height: 44px;
 }
+
+/* ---------- Board ---------- */
+
+/*
+ * The discs sit in a grid of square slots. The blue face is a second grid of
+ * the same size drawn over them, each cell painted blue around a transparent
+ * hole, so a falling disc passes behind the face.
+ */
+.board-area {
+  --pad: 10px;
+  --red-light: #e8565c;
+  --red: #c41e26;
+  --red-dark: #8e131a;
+  --yellow-light: #ffe58a;
+  --yellow: #ffc21a;
+  --yellow-dark: #d48f00;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+@media (min-width: 880px) {
+  .board-area {
+    --pad: 16px;
+    gap: 12px;
+  }
+}
+
+.wait-row,
+.discs,
+.face,
+.column-buttons {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.wait-row {
+  padding: 0 var(--pad);
+}
+
+.wait-slot,
+.slot {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.board {
+  position: relative;
+  padding: var(--pad);
+  border-radius: calc(var(--pad) + 10px);
+  background: var(--ground);
+}
+
+.discs {
+  position: relative;
+  z-index: 1;
+}
+
+/*
+ * The face covers the whole board, padding included. Its own background paints
+ * only the padding; each hole cell paints the blue around its hole.
+ */
+.face {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  padding: var(--pad);
+  border-radius: inherit;
+  background:
+    linear-gradient(var(--board), var(--board)) top / 100% var(--pad) no-repeat,
+    linear-gradient(var(--board), var(--board)) bottom / 100% var(--pad) no-repeat,
+    linear-gradient(var(--board), var(--board)) left / var(--pad) 100% no-repeat,
+    linear-gradient(var(--board), var(--board)) right / var(--pad) 100% no-repeat;
+  box-shadow:
+    inset 0 -7px 0 var(--board-dark),
+    inset 0 2px 0 var(--board-light),
+    0 24px 40px -22px rgba(15, 31, 69, 0.55);
+}
+
+.hole {
+  aspect-ratio: 1;
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 calc(82% - 1px),
+    rgba(15, 31, 69, 0.35) 82%,
+    var(--board) calc(82% + 3px)
+  );
+}
+
+.disc {
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+}
+
+.disc.human {
+  background: radial-gradient(circle at 34% 28%, var(--red-light) 0%, var(--red) 52%, var(--red-dark) 100%);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+
+.disc.computer {
+  background: radial-gradient(circle at 34% 28%, var(--yellow-light) 0%, var(--yellow) 52%, var(--yellow-dark) 100%);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.14);
+}
+
+.disc.ghost {
+  opacity: 0.42;
+}
+
+.disc.win {
+  box-shadow:
+    inset 0 0 0 4px var(--surface),
+    inset 0 0 0 7px var(--ink);
+}
+
+.disc.dim {
+  opacity: 0.32;
+}
+
+/* A new disc falls from the row above the board (--fall slots up) and bounces once. */
+.disc.falling {
+  animation: fall calc(180ms + var(--fall) * 50ms) cubic-bezier(0.45, 0, 1, 1);
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(calc(var(--fall) * -122%));
+  }
+  78% {
+    transform: translateY(0);
+  }
+  89% {
+    transform: translateY(-9%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* While the computer thinks, its disc moves back and forth above the middle columns. */
+.disc.thinking {
+  animation: sway 2.6s ease-in-out infinite;
+}
+
+@keyframes sway {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(-122%);
+  }
+  65% {
+    transform: translateX(122%);
+  }
+}
+
+.column-highlight {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--pad) / 2);
+  bottom: calc(var(--pad) / 2);
+  left: calc(var(--pad) + var(--column) * (100% - 2 * var(--pad)) / 7);
+  width: calc((100% - 2 * var(--pad)) / 7);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+.column-buttons {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  padding: 0 var(--pad);
+}
+
+.column-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.column-button:disabled {
+  cursor: default;
+}
+
+.column-button:focus-visible {
+  outline-offset: -3px;
+  outline-color: var(--surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disc.falling,
+  .disc.thinking {
+    animation: none;
+  }
+}
