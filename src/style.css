@@ -274,11 +274,16 @@ a:hover {
   overflow: hidden;
   padding: var(--pad);
   border-radius: inherit;
+  /*
+   * On scaled screens the hole cells meet at fractional pixels and thin light
+   * seams show. The stripes reach 2px into the hole grid and each hole cell
+   * casts 1px of blue around itself, so every seam is covered.
+   */
   background:
-    linear-gradient(var(--board), var(--board)) top / 100% var(--pad) no-repeat,
-    linear-gradient(var(--board), var(--board)) bottom / 100% var(--pad) no-repeat,
-    linear-gradient(var(--board), var(--board)) left / var(--pad) 100% no-repeat,
-    linear-gradient(var(--board), var(--board)) right / var(--pad) 100% no-repeat;
+    linear-gradient(var(--board), var(--board)) top / 100% calc(var(--pad) + 2px) no-repeat,
+    linear-gradient(var(--board), var(--board)) bottom / 100% calc(var(--pad) + 2px) no-repeat,
+    linear-gradient(var(--board), var(--board)) left / calc(var(--pad) + 2px) 100% no-repeat,
+    linear-gradient(var(--board), var(--board)) right / calc(var(--pad) + 2px) 100% no-repeat;
   box-shadow:
     inset 0 -7px 0 var(--board-dark),
     inset 0 2px 0 var(--board-light),
@@ -293,6 +298,7 @@ a:hover {
     rgba(15, 31, 69, 0.35) 82%,
     var(--board) calc(82% + 3px)
   );
+  box-shadow: 0 0 0 1px var(--board);
 }
 
 .disc {
