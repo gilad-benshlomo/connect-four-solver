@@ -54,9 +54,9 @@ export function startGame(flow: Flow, starter: Starter): Flow {
   };
 }
 
-/** Leaves the current game (if any) and goes back to choosing who goes first. */
+/** Leaves the current game (if any) and goes back to choosing who goes first, on an empty board. */
 export function chooseAgain(flow: Flow): Flow {
-  return { ...flow, phase: { kind: 'choosing' }, gameId: flow.gameId + 1 };
+  return { ...flow, game: newGame(), phase: { kind: 'choosing' }, gameId: flow.gameId + 1 };
 }
 
 /**

@@ -25,5 +25,4 @@ const solver = new SolverClient((request) => worker.postMessage(request));
 worker.onmessage = (event: MessageEvent<SolverResponse>) => solver.receive(event.data);
 worker.onerror = (event) => solver.failAll(event.message || 'The solver stopped working');
 
-const app = new App(new GameView(container), solver, stringsFor('en', 'masculine'), 'en');
-app.start('human');
+new App(new GameView(container), solver, stringsFor('en', 'masculine'), 'en');

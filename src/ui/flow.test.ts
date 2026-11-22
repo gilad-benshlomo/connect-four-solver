@@ -66,9 +66,10 @@ describe('starting', () => {
   });
 
   it('can go back to choosing, which also abandons the game in progress', () => {
-    const flow = play('computer', []);
+    const flow = play('computer', [3, 3]);
     const back = chooseAgain(flow);
     expect(back.phase).toEqual({ kind: 'choosing' });
+    expect(back.game.moves).toEqual([]);
     expect(back.gameId).toBe(flow.gameId + 1);
     // An answer to the abandoned game changes nothing.
     expect(computerMove(back, flow.gameId, 3)).toBe(back);

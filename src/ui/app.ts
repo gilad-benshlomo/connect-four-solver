@@ -5,6 +5,7 @@
  * asks the solver for its move.
  */
 import {
+  chooseAgain,
   computerMove,
   humanMove,
   initialFlow,
@@ -27,6 +28,13 @@ const SLOW_AFTER_MS = 3000;
  */
 const SHORTEST_TURN_MS = 550;
 
+/** True if nothing usable has the keyboard focus: no element, or one now hidden or disabled. */
+function lostFocus(): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active === document.body) return true;
+  return active.closest('[hidden]') !== null || (active instanceof HTMLButtonElement && active.disabled);
+}
+
 export class App {
   private flow: Flow = initialFlow();
   private strings: Strings;
@@ -44,6 +52,8 @@ export class App {
     this.strings = strings;
     view.board.setColumnHandler((column) => this.update(humanMove(this.flow, column)));
     view.board.setHoverHandler(() => this.renderHovering());
+    view.setStartHandler((starter) => this.start(starter));
+    view.setNewGameHandler(() => this.update(chooseAgain(this.flow)));
     view.setStrings(strings, language);
     this.render();
   }
@@ -65,6 +75,9 @@ export class App {
     this.flow = next;
     if (next.phase.kind !== 'computerTurn') this.stopSlowTimer();
     this.render();
+    // A button that was just hidden or disabled loses the keyboard focus;
+    // move the focus to whatever comes next instead of leaving it nowhere.
+    if (lostFocus()) this.view.focusNextAction(next.phase);
     if (next.phase.kind === 'computerTurn') this.askComputer();
   }
 

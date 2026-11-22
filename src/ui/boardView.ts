@@ -37,6 +37,8 @@ export class BoardView {
   /** The moves on the board as last drawn, to tell a new disc from a new game. */
   private drawnMoves: number[] = [];
   private hoverColumn: number | null = null;
+  /** The column the keyboard was last on; the focus comes back to it on the player's next turn. */
+  private lastFocused = 3;
   private onColumn: (column: number) => void = () => {};
   private onHoverChange: () => void = () => {};
 
@@ -59,7 +61,12 @@ export class BoardView {
       button.addEventListener('click', () => this.onColumn(column));
       button.addEventListener('pointerenter', () => this.setHover(column));
       button.addEventListener('pointerleave', () => this.setHover(null));
-      button.addEventListener('focus', () => this.setHover(column));
+      // Only a keyboard focus shows the waiting disc; focus moved by the page
+      // after a mouse click should not.
+      button.addEventListener('focus', () => {
+        this.lastFocused = column;
+        if (button.matches(':focus-visible')) this.setHover(column);
+      });
       button.addEventListener('blur', () => this.setHover(null));
       button.addEventListener('keydown', (event) => this.moveFocus(event, column));
       this.buttons.push(button);
@@ -148,6 +155,23 @@ export class BoardView {
     const column = hovering.kind === 'ghost' ? hovering.column : null;
     this.highlight.hidden = column === null;
     if (column !== null) this.highlight.style.setProperty('--column', String(column));
+  }
+
+  /**
+   * Moves the keyboard focus back to the column it was last on or, if that
+   * column is full, to the nearest one that can be played. Does nothing when
+   * no column can be played.
+   */
+  focusPlayableColumn(): void {
+    for (let distance = 0; distance < COLUMNS; distance++) {
+      for (const column of [this.lastFocused - distance, this.lastFocused + distance]) {
+        const button = this.buttons[column];
+        if (button && !button.disabled) {
+          button.focus();
+          return;
+        }
+      }
+    }
   }
 
   private setHover(column: number | null): void {
