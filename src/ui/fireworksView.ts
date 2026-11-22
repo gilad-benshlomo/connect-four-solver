@@ -4,16 +4,26 @@
  * is drawn for players who asked their system for reduced motion.
  */
 import { h } from './dom';
-import { SHOW_MS, planBursts, sparkAt, sparksOf, type Spark, type SparkState } from './fireworks';
+import { planBursts, sparkAt, sparksOf, type Spark, type SparkState } from './fireworks';
 
 /** How far behind a spark its streak starts, in ms: a short tail shows its motion. */
 const TAIL_MS = 90;
+
+/**
+ * How visible a spark is near the canvas edges (0 to 1), given its position
+ * as fractions of the canvas: sparks fade out there instead of being cut off.
+ */
+function edgeFade(x: number, y: number): number {
+  const margin = 0.08;
+  return Math.max(0, Math.min(1, x / margin, (1 - x) / margin, y / margin, (1 - y) / margin));
+}
 
 export class FireworksView {
   /** The canvas to place over the board. */
   readonly canvas = h('canvas', { class: 'fireworks', 'aria-hidden': 'true' });
   private sparks: Spark[] = [];
   private startedAt = 0;
+  private showMs = 0;
   private frame: number | undefined;
   private readonly reducedMotion: () => boolean;
 
@@ -23,11 +33,12 @@ export class FireworksView {
     this.canvas.hidden = true;
   }
 
-  /** Starts a new show, replacing one still running. */
-  play(): void {
+  /** Starts a show lasting `showMs`, replacing one still running. */
+  play(showMs: number): void {
     this.stop();
     if (this.reducedMotion()) return;
-    this.sparks = planBursts(Math.random).flatMap((burst) => sparksOf(burst, Math.random));
+    this.showMs = showMs;
+    this.sparks = planBursts(Math.random, showMs).flatMap((burst) => sparksOf(burst, Math.random));
     this.startedAt = performance.now();
     this.canvas.hidden = false;
     this.frame = requestAnimationFrame((now) => this.draw(now));
@@ -43,7 +54,7 @@ export class FireworksView {
 
   private draw(now: number): void {
     const time = now - this.startedAt;
-    if (time >= SHOW_MS) {
+    if (time >= this.showMs) {
       this.stop();
       return;
     }
@@ -55,15 +66,15 @@ export class FireworksView {
         const head = sparkAt(spark, time);
         if (!head) continue;
         const tail = sparkAt(spark, Math.max(spark.born, time - TAIL_MS)) ?? head;
-        context.globalAlpha = head.alpha;
-        context.strokeStyle = spark.color;
-        context.shadowColor = spark.color;
-        context.lineWidth = Math.max(2, size / 150);
-        context.beginPath();
         // The burst sits at its spot in the area; the sparks fly in units of
         // the area's shorter side, so a burst stays round on any shape.
         const x = (state: SparkState) => spark.x * width + (state.x - spark.x) * size;
         const y = (state: SparkState) => spark.y * height + (state.y - spark.y) * size;
+        context.globalAlpha = head.alpha * edgeFade(x(head) / width, y(head) / height);
+        context.strokeStyle = spark.color;
+        context.shadowColor = spark.color;
+        context.lineWidth = Math.max(2, size / 150);
+        context.beginPath();
         context.moveTo(x(tail), y(tail));
         context.lineTo(x(head), y(head));
         context.stroke();

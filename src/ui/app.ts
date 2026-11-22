@@ -14,6 +14,7 @@ import {
   type Flow,
   type Starter,
 } from './flow';
+import { DRAW_SHOW_MS, WIN_SHOW_MS } from './fireworks';
 import { saveSettings, type Settings, type SettingsStore } from './settings';
 import type { SolverClient } from './solverClient';
 import { statusFor } from './status';
@@ -88,8 +89,11 @@ export class App {
     if (next === this.flow) return;
     const wasOver = this.flow.phase.kind === 'over';
     this.flow = next;
-    // Fireworks when the player wins; a new game ends any still going.
-    if (next.phase.kind === 'over' && next.phase.result === 'humanWon' && !wasOver) this.view.board.fireworks.play();
+    // Fireworks when the player wins, shorter ones for a draw; a new game ends any still going.
+    if (next.phase.kind === 'over' && !wasOver) {
+      if (next.phase.result === 'humanWon') this.view.board.fireworks.play(WIN_SHOW_MS);
+      if (next.phase.result === 'draw') this.view.board.fireworks.play(DRAW_SHOW_MS);
+    }
     if (next.phase.kind !== 'over') this.view.board.fireworks.stop();
     if (next.phase.kind !== 'computerTurn') this.stopSlowTimer();
     this.render();

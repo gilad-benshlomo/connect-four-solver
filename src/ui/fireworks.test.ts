@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIREWORK_COLORS, SHOW_MS, planBursts, sparkAt, sparksOf, type Random, type Spark } from './fireworks';
+import { DRAW_SHOW_MS, FIREWORK_COLORS, WIN_SHOW_MS, planBursts, sparkAt, sparksOf, type Random, type Spark } from './fireworks';
 
 /** A repeatable random sequence (mulberry32), so a failing test fails the same way every time. */
 function seeded(seed: number): Random {
@@ -30,14 +30,16 @@ function lastVisible(sparks: Spark[]): number {
 }
 
 describe('planBursts', () => {
+  const LENGTHS = [DRAW_SHOW_MS, WIN_SHOW_MS];
+
   it('uses only the game colours, and all of them', () => {
-    const colors = new Set(planBursts(seeded(3)).map((burst) => burst.color));
+    const colors = new Set(planBursts(seeded(3), DRAW_SHOW_MS).map((burst) => burst.color));
     expect([...colors].sort()).toEqual([...FIREWORK_COLORS].sort());
   });
 
   it('places every burst inside the area, away from the bottom', () => {
     for (const [name, random] of RANDOMS) {
-      for (const burst of planBursts(random)) {
+      for (const burst of planBursts(random, WIN_SHOW_MS)) {
         expect(burst.x, name).toBeGreaterThan(0);
         expect(burst.x, name).toBeLessThan(1);
         expect(burst.y, name).toBeGreaterThan(0);
@@ -47,16 +49,27 @@ describe('planBursts', () => {
   });
 
   it('lets every spark fade out before the show ends', () => {
-    for (const [name, random] of RANDOMS) {
-      const sparks = planBursts(random).flatMap((burst) => sparksOf(burst, random));
-      expect(lastVisible(sparks), name).toBeLessThan(SHOW_MS);
+    for (const showMs of LENGTHS) {
+      for (const [name, random] of RANDOMS) {
+        const sparks = planBursts(random, showMs).flatMap((burst) => sparksOf(burst, random));
+        expect(lastVisible(sparks), `${name}, ${showMs} ms`).toBeLessThan(showMs);
+      }
     }
   });
 
-  it('spreads the bursts over the show instead of firing them all at once', () => {
-    const times = planBursts(seeded(4)).map((burst) => burst.at);
-    expect(Math.min(...times)).toBeLessThan(200);
-    expect(Math.max(...times)).toBeGreaterThan(2000);
+  it('spreads the bursts over the whole show instead of firing them all at once', () => {
+    for (const showMs of LENGTHS) {
+      const times = planBursts(seeded(4), showMs).map((burst) => burst.at);
+      expect(Math.min(...times)).toBeLessThan(200);
+      expect(Math.max(...times)).toBeGreaterThan(showMs / 2);
+    }
+  });
+
+  it('keeps the same pace in a longer show, with more bursts', () => {
+    const short = planBursts(seeded(5), DRAW_SHOW_MS).length;
+    const long = planBursts(seeded(5), WIN_SHOW_MS).length;
+    // Bursts per second, to one decimal place.
+    expect(long / (WIN_SHOW_MS / 1000)).toBeCloseTo(short / (DRAW_SHOW_MS / 1000), 1);
   });
 });
 
