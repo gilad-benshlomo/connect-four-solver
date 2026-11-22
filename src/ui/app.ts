@@ -25,9 +25,10 @@ const SLOW_AFTER_MS = 3000;
 
 /**
  * The computer's disc is never played sooner than this after the player's,
- * so the player's disc lands first, even when the answer comes from the book.
+ * so the player's disc lands first and the computer is seen to think, even
+ * when the answer comes at once from the book.
  */
-const SHORTEST_TURN_MS = 550;
+const SHORTEST_TURN_MS = 1000;
 
 /** True if nothing usable has the keyboard focus: no element, or one now hidden or disabled. */
 function lostFocus(): boolean {
