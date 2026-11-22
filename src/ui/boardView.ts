@@ -9,6 +9,7 @@
 import { COLUMNS, ROWS } from '../game/board';
 import { h } from './dom';
 import { isHumanDisc, playableColumns, type Flow } from './flow';
+import { FireworksView } from './fireworksView';
 import type { Strings } from './strings';
 
 /** Which disc, if any, waits in the row above the board. */
@@ -29,6 +30,8 @@ export function addsOneMove(before: readonly number[], after: readonly number[])
 
 export class BoardView {
   readonly root: HTMLElement;
+  /** The fireworks over the board, for a win. */
+  readonly fireworks = new FireworksView();
   private readonly waitRow = h('div', { class: 'wait-row', 'aria-hidden': 'true' });
   private readonly slots: HTMLElement[][] = [];
   private readonly highlight = h('div', { class: 'column-highlight', 'aria-hidden': 'true' });
@@ -74,7 +77,15 @@ export class BoardView {
     }
     for (let column = 0; column < COLUMNS; column++) this.waitRow.append(h('div', { class: 'wait-slot' }));
 
-    this.group = h('div', { class: 'board', role: 'group', dir: 'ltr' }, discs, face, this.highlight, buttons);
+    this.group = h(
+      'div',
+      { class: 'board', role: 'group', dir: 'ltr' },
+      discs,
+      face,
+      this.highlight,
+      buttons,
+      this.fireworks.canvas,
+    );
     this.root = h('div', { class: 'board-area', dir: 'ltr' }, this.waitRow, this.group);
   }
 

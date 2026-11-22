@@ -85,7 +85,11 @@ export class App {
 
   private update(next: Flow): void {
     if (next === this.flow) return;
+    const wasOver = this.flow.phase.kind === 'over';
     this.flow = next;
+    // Fireworks when the player wins; a new game ends any still going.
+    if (next.phase.kind === 'over' && next.phase.result === 'humanWon' && !wasOver) this.view.board.fireworks.play();
+    if (next.phase.kind !== 'over') this.view.board.fireworks.stop();
     if (next.phase.kind !== 'computerTurn') this.stopSlowTimer();
     this.render();
     // A button that was just hidden or disabled loses the keyboard focus;
