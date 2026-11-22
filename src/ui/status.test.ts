@@ -40,11 +40,29 @@ describe('statusFor', () => {
     expect(statusFor(flow, en, true)?.detail).toBe('Perfect play takes a moment.');
   });
 
-  it('shows a win for the player', () => {
+  it('shows a win for the player, with how many moves the player made', () => {
+    // The player drops four in column 0 in 4 moves.
     expect(statusFor(play('human', [0, 1, 0, 1, 0, 1, 0]), en, false)).toEqual({
       side: 'human',
-      text: 'You win!',
-      detail: en.youWinMessage,
+      text: 'You beat the perfect solver!',
+      detail: 'Not one of your 4 moves let the win slip. That takes a perfect game, and you played one.',
+      busy: false,
+    });
+  });
+
+  it('shows a draw with no side', () => {
+    // A full board with no line (the same moves as in flow.test.ts).
+    const draw = [
+      0, 0, 0, 0, 0, 0,
+      1, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1,
+      3, 3, 3, 3, 3, 3,
+      4, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 4,
+      6, 6, 6, 6, 6, 6,
+    ];
+    expect(statusFor(play('human', draw), en, false)).toEqual({
+      side: null,
+      text: 'A draw!',
+      detail: en.drawMessage,
       busy: false,
     });
   });

@@ -40,7 +40,7 @@ export function statusFor(flow: Flow, strings: Strings, slow: boolean): Status |
       };
     case 'over':
       if (phase.result === 'humanWon') {
-        return { side: 'human', text: strings.youWin, detail: strings.youWinMessage, busy: false };
+        return { side: 'human', text: strings.youWin, detail: strings.youWinMessage(humanMoveCount(flow)), busy: false };
       }
       if (phase.result === 'computerWon') {
         return { side: 'computer', text: strings.computerWins, detail: strings.lasted(humanMoveCount(flow)), busy: false };

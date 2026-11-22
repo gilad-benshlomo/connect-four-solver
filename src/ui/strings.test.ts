@@ -73,6 +73,12 @@ describe('strings', () => {
     expect(ALL_STRINGS.heMasculine.lasted(1)).toBe('החזקת מעמד מהלך אחד.');
     expect(ALL_STRINGS.heMasculine.lasted(7)).toBe('החזקת מעמד 7 מהלכים.');
   });
+
+  it('puts the number of the player\'s moves in the win message', () => {
+    expect(ALL_STRINGS.en.youWinMessage(21)).toContain('Not one of your 21 moves');
+    expect(ALL_STRINGS.heMasculine.youWinMessage(21)).toContain('אף אחד מ-21 המהלכים שלך');
+    expect(ALL_STRINGS.heFeminine.youWinMessage(21)).toBe(ALL_STRINGS.heMasculine.youWinMessage(21));
+  });
 });
 
 describe('stringsFor', () => {

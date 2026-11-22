@@ -37,7 +37,8 @@ export type Strings = {
   thinkingSlow: string;
 
   youWin: string;
-  youWinMessage: string;
+  /** Praise for a win, given the number of the player's moves. */
+  youWinMessage: (moves: number) => string;
   computerWins: string;
   /** How long the player held out, given the number of the player's moves. */
   lasted: (moves: number) => string;
@@ -90,12 +91,14 @@ const en: Strings = {
   computerThinking: 'Computer is thinking',
   thinkingSlow: 'Perfect play takes a moment.',
 
-  youWin: 'You win!',
-  youWinMessage: 'A perfect game. Well played.',
+  youWin: 'You beat the perfect solver!',
+  youWinMessage: (moves) =>
+    `Not one of your ${moves} moves let the win slip. That takes a perfect game, and you played one.`,
   computerWins: 'The computer wins',
   lasted: (moves) => (moves === 1 ? 'You lasted 1 move.' : `You lasted ${moves} moves.`),
-  draw: 'It’s a draw',
-  drawMessage: 'Close, but a perfect game would have won.',
+  draw: 'A draw!',
+  drawMessage:
+    'Well done, you’re almost there. A draw means you didn’t make a single losing move all game. Only a perfect game does better.',
   playAgain: 'Play again',
   newGame: 'New game',
 
@@ -149,12 +152,14 @@ const heMasculine: Strings = {
   computerThinking: 'המחשב חושב',
   thinkingSlow: 'משחק מושלם לוקח רגע.',
 
-  youWin: 'ניצחת!',
-  youWinMessage: 'משחק מושלם. כל הכבוד.',
+  youWin: 'ניצחת את הפותר המושלם!',
+  youWinMessage: (moves) =>
+    `אף אחד מ-${moves} המהלכים שלך לא איבד את הניצחון. זה דורש משחק מושלם, ושיחקת אחד כזה.`,
   computerWins: 'המחשב ניצח',
   lasted: (moves) => (moves === 1 ? 'החזקת מעמד מהלך אחד.' : `החזקת מעמד ${moves} מהלכים.`),
-  draw: 'תיקו',
-  drawMessage: 'קרוב, אבל משחק מושלם היה מנצח.',
+  draw: 'תיקו!',
+  drawMessage:
+    'כל הכבוד, אתה כמעט שם. תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. רק משחק מושלם משיג יותר.',
   playAgain: 'עוד משחק',
   newGame: 'משחק חדש',
 
@@ -202,6 +207,7 @@ export const ADDRESSED_KEYS = [
   'startExplanation',
   'computerStartedMessage',
   'playerStartedMessage',
+  'drawMessage',
   'you',
 ] as const satisfies readonly (keyof Strings)[];
 
@@ -212,6 +218,8 @@ const heFeminine: Strings = {
   startExplanation: ['אם המחשב מתחיל, הוא תמיד מנצח.', 'אם את מתחילה, תוכלי לנצח, אבל רק במשחק מושלם.'],
   computerStartedMessage: 'את הולכת להפסיד, אבל בואי נראה כמה זמן תצליחי לשרוד.',
   playerStartedMessage: 'תוכלי לנצח רק אם תשחקי משחק מושלם.',
+  drawMessage:
+    'כל הכבוד, את כמעט שם. תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. רק משחק מושלם משיג יותר.',
   you: 'את',
 };
 
