@@ -89,6 +89,7 @@ export class GameView {
   private readonly rulesButton = h('button', { type: 'button', class: 'text-button' });
   private readonly sourceLink = h('a', { class: 'source-link', href: SOURCE_URL });
   private readonly rules = new RulesDialog();
+  private strings: Strings | null = null;
 
   constructor(container: HTMLElement) {
     this.languageGroup.append(this.englishButton, this.hebrewButton);
@@ -114,6 +115,7 @@ export class GameView {
    * and sets the page's language and direction.
    */
   setStrings(strings: Strings, language: Language, address: Address): void {
+    this.strings = strings;
     const html = document.documentElement;
     html.lang = language;
     html.dir = language === 'he' ? 'rtl' : 'ltr';
@@ -142,7 +144,6 @@ export class GameView {
     this.legendYou.textContent = strings.you;
     this.legendComputer.textContent = strings.computer;
     this.newGameButton.textContent = strings.newGame;
-    this.playAgainButton.textContent = strings.playAgain;
   }
 
   /** Calls `handler` when the player picks a language. */
@@ -184,6 +185,10 @@ export class GameView {
     this.gamePanel.hidden = phase.kind === 'choosing';
     this.playAgainButton.hidden = !finished;
     this.newGameButton.hidden = finished;
+    // After an error the message says to start a new game, so the button says so too.
+    if (this.strings) {
+      this.playAgainButton.textContent = phase.kind === 'error' ? this.strings.newGame : this.strings.playAgain;
+    }
   }
 
   /** Shows the status beside the board, or hides it when there is none. */
