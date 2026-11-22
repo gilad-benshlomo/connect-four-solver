@@ -140,7 +140,6 @@ export class BoardView {
       button.disabled = !playable.has(column);
     });
     if (this.hoverColumn !== null && !playable.has(this.hoverColumn)) this.hoverColumn = null;
-    this.group.classList.toggle('playable', playable.size > 0);
   }
 
   /** Draws the disc that waits above the board, and the highlight of its column. */
