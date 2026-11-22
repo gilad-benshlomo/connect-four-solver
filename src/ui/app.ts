@@ -14,9 +14,10 @@ import {
   type Flow,
   type Starter,
 } from './flow';
+import { saveSettings, type Settings, type SettingsStore } from './settings';
 import type { SolverClient } from './solverClient';
 import { statusFor } from './status';
-import type { Language, Strings } from './strings';
+import { stringsFor, type Strings } from './strings';
 import type { GameView } from './view';
 
 /** After this long, the status adds that perfect play takes a moment. */
@@ -37,6 +38,7 @@ function lostFocus(): boolean {
 
 export class App {
   private flow: Flow = initialFlow();
+  private settings: Settings;
   private strings: Strings;
   /** True once the computer has been thinking for SLOW_AFTER_MS. */
   private slow = false;
@@ -45,28 +47,39 @@ export class App {
   private asked = '';
   private readonly view: GameView;
   private readonly solver: SolverClient;
+  private readonly store: SettingsStore | null;
 
-  constructor(view: GameView, solver: SolverClient, strings: Strings, language: Language) {
+  /**
+   * @param settings the language and form of address to start with
+   * @param store where the player's choices are kept for the next visit (null: not kept)
+   */
+  constructor(view: GameView, solver: SolverClient, settings: Settings, store: SettingsStore | null) {
     this.view = view;
     this.solver = solver;
-    this.strings = strings;
+    this.store = store;
+    this.settings = settings;
+    this.strings = stringsFor(settings.language, settings.address);
     view.board.setColumnHandler((column) => this.update(humanMove(this.flow, column)));
     view.board.setHoverHandler(() => this.renderHovering());
     view.setStartHandler((starter) => this.start(starter));
     view.setNewGameHandler(() => this.update(chooseAgain(this.flow)));
-    view.setStrings(strings, language);
+    view.setLanguageHandler((language) => this.changeSettings({ ...this.settings, language }));
+    view.setAddressHandler((address) => this.changeSettings({ ...this.settings, address }));
+    view.setStrings(this.strings, settings.language, settings.address);
     this.render();
   }
 
   /** Starts a new game with the given player moving first. */
-  start(starter: Starter): void {
+  private start(starter: Starter): void {
     this.update(startGame(this.flow, starter));
   }
 
-  /** Shows the page in another language or form of address. */
-  setStrings(strings: Strings, language: Language): void {
-    this.strings = strings;
-    this.view.setStrings(strings, language);
+  /** Shows the page in another language or form of address, and keeps the choice for next time. */
+  private changeSettings(settings: Settings): void {
+    this.settings = settings;
+    this.strings = stringsFor(settings.language, settings.address);
+    saveSettings(this.store, settings);
+    this.view.setStrings(this.strings, settings.language, settings.address);
     this.render();
   }
 

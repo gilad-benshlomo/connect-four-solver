@@ -9,8 +9,8 @@ import '@fontsource/ibm-plex-sans-hebrew/700.css';
 import './style.css';
 import type { SolverResponse } from './solver/solver.worker';
 import { App } from './ui/app';
+import { loadSettings, type SettingsStore } from './ui/settings';
 import { SolverClient } from './ui/solverClient';
-import { stringsFor } from './ui/strings';
 import { GameView } from './ui/view';
 
 const container = document.querySelector<HTMLDivElement>('#app');
@@ -25,4 +25,14 @@ const solver = new SolverClient((request) => worker.postMessage(request));
 worker.onmessage = (event: MessageEvent<SolverResponse>) => solver.receive(event.data);
 worker.onerror = (event) => solver.failAll(event.message || 'The solver stopped working');
 
-new App(new GameView(container), solver, stringsFor('en', 'masculine'), 'en');
+/** The browser's storage, or null where even reaching it is blocked. */
+function browserStorage(): SettingsStore | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+const store = browserStorage();
+new App(new GameView(container), solver, loadSettings(store, navigator.languages), store);

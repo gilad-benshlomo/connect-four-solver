@@ -682,3 +682,156 @@ a:hover {
     padding: 0 28px;
   }
 }
+
+/* ---------- Form of address (Hebrew only) ---------- */
+
+.address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.address[hidden] {
+  display: none;
+}
+
+.address .segmented {
+  color: var(--ink);
+}
+
+/* ---------- How to play ---------- */
+
+.rules {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  padding: 20px 18px 18px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 30px 60px -20px rgba(15, 31, 69, 0.6);
+}
+
+.rules[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rules::backdrop {
+  background: rgba(15, 31, 69, 0.55);
+}
+
+.rules-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rules-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ground);
+  cursor: pointer;
+}
+
+.rules-list {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* The panel about the computer wears the board's blue. */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+  background: var(--board);
+  color: var(--surface);
+  box-shadow: inset 0 -5px 0 var(--board-dark);
+}
+
+.about-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.about-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #e6edfd;
+}
+
+.about-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* Each number is shown above its label, though the label comes first for screen readers. */
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.stat dt {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #e6edfd;
+}
+
+.stat dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rules .primary-button {
+  flex: none;
+  width: 100%;
+}
+
+@media (min-width: 880px) {
+  .rules {
+    padding: 28px 28px 24px;
+  }
+
+  .rules-list {
+    font-size: 16px;
+  }
+
+  .about-text {
+    font-size: 15px;
+  }
+
+  .stat dd {
+    font-size: 20px;
+  }
+}

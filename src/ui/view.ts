@@ -6,8 +6,9 @@
 import { BoardView } from './boardView';
 import { h } from './dom';
 import type { Phase, Starter } from './flow';
+import { RulesDialog } from './rulesDialog';
 import type { Status } from './status';
-import type { Language, Strings } from './strings';
+import type { Address, Language, Strings } from './strings';
 
 const SOURCE_URL = 'https://github.com/gilad-benshlomo/connect-four-solver';
 
@@ -27,6 +28,21 @@ export class GameView {
 
   // Before a game: who goes first.
   private readonly chooseTitle = h('h2', { class: 'choose-title', id: 'choose-title' });
+  // Hebrew only: how the page addresses the player.
+  private readonly addressLabel = h('span', { id: 'address-label' });
+  private readonly masculineButton = h('button', { type: 'button', class: 'segment' });
+  private readonly feminineButton = h('button', { type: 'button', class: 'segment' });
+  private readonly addressChoice = h(
+    'div',
+    { class: 'address' },
+    this.addressLabel,
+    h(
+      'div',
+      { class: 'segmented', role: 'group', 'aria-labelledby': 'address-label' },
+      this.masculineButton,
+      this.feminineButton,
+    ),
+  );
   private readonly humanFirstLabel = h('span');
   private readonly computerFirstLabel = h('span');
   private readonly humanFirstButton = h(
@@ -45,7 +61,7 @@ export class GameView {
   private readonly choosePanel = h(
     'section',
     { class: 'choose', 'aria-labelledby': 'choose-title' },
-    h('div', { class: 'choose-head' }, this.chooseTitle),
+    h('div', { class: 'choose-head' }, this.chooseTitle, this.addressChoice),
     this.humanFirstButton,
     this.computerFirstButton,
     this.chooseExplanation,
@@ -72,6 +88,7 @@ export class GameView {
   private readonly play = h('div', { class: 'play' }, this.board.root);
   private readonly rulesButton = h('button', { type: 'button', class: 'text-button' });
   private readonly sourceLink = h('a', { class: 'source-link', href: SOURCE_URL });
+  private readonly rules = new RulesDialog();
 
   constructor(container: HTMLElement) {
     this.languageGroup.append(this.englishButton, this.hebrewButton);
@@ -86,12 +103,17 @@ export class GameView {
       this.play,
       this.controls,
       h('footer', { class: 'footer' }, this.rulesButton, this.sourceLink),
+      this.rules.root,
     );
+    this.rulesButton.addEventListener('click', () => this.rules.open());
     container.replaceChildren(this.root);
   }
 
-  /** Shows every text in the given language, and sets the page's language and direction. */
-  setStrings(strings: Strings, language: Language): void {
+  /**
+   * Shows every text in the given language (and, in Hebrew, form of address),
+   * and sets the page's language and direction.
+   */
+  setStrings(strings: Strings, language: Language, address: Address): void {
     const html = document.documentElement;
     html.lang = language;
     html.dir = language === 'he' ? 'rtl' : 'ltr';
@@ -102,6 +124,13 @@ export class GameView {
     this.languageGroup.setAttribute('aria-label', strings.languageLabel);
     this.englishButton.setAttribute('aria-pressed', String(language === 'en'));
     this.hebrewButton.setAttribute('aria-pressed', String(language === 'he'));
+    this.addressChoice.hidden = language !== 'he';
+    this.addressLabel.textContent = strings.addressLabel;
+    this.masculineButton.textContent = strings.masculine;
+    this.feminineButton.textContent = strings.feminine;
+    this.masculineButton.setAttribute('aria-pressed', String(address === 'masculine'));
+    this.feminineButton.setAttribute('aria-pressed', String(address === 'feminine'));
+    this.rules.setStrings(strings);
     this.rulesButton.textContent = strings.howToPlay;
     this.sourceLink.textContent = strings.sourceCode;
     this.board.setStrings(strings);
@@ -114,6 +143,18 @@ export class GameView {
     this.legendComputer.textContent = strings.computer;
     this.newGameButton.textContent = strings.newGame;
     this.playAgainButton.textContent = strings.playAgain;
+  }
+
+  /** Calls `handler` when the player picks a language. */
+  setLanguageHandler(handler: (language: Language) => void): void {
+    this.englishButton.addEventListener('click', () => handler('en'));
+    this.hebrewButton.addEventListener('click', () => handler('he'));
+  }
+
+  /** Calls `handler` when the player picks how the page addresses them in Hebrew. */
+  setAddressHandler(handler: (address: Address) => void): void {
+    this.masculineButton.addEventListener('click', () => handler('masculine'));
+    this.feminineButton.addEventListener('click', () => handler('feminine'));
   }
 
   /** Calls `handler` with the player's choice of who goes first. */
