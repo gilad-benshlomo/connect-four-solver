@@ -16,14 +16,15 @@ export class RulesDialog {
   );
   private readonly rules = h('ul', { class: 'rules-list' });
   private readonly aboutTitle = h('h3', { class: 'about-title', id: 'about-title' });
-  private readonly aboutText = h('p', { class: 'about-text' });
+  private readonly aboutText = h('div', { class: 'about-text' });
   private readonly stats = h('dl', { class: 'about-stats' });
   private readonly gotItButton = h('button', { type: 'button', class: 'primary-button' });
 
   constructor() {
     this.root = h(
       'dialog',
-      { class: 'rules', 'aria-labelledby': 'rules-title' },
+      // tabindex lets the window itself take the focus (see open).
+      { class: 'rules', 'aria-labelledby': 'rules-title', tabindex: '-1' },
       h('div', { class: 'rules-head' }, this.title, this.closeButton),
       this.rules,
       h('section', { class: 'about', 'aria-labelledby': 'about-title' }, this.aboutTitle, this.aboutText, this.stats),
@@ -37,9 +38,16 @@ export class RulesDialog {
     });
   }
 
-  /** Opens the window over the page. */
-  open(): void {
+  /**
+   * Opens the window over the page. The browser puts the focus on the close
+   * button; when the page opens the window by itself, the focus goes to the
+   * window instead, so no button looks chosen before the player did anything.
+   *
+   * @param byPage true when the page opens the window, not the player
+   */
+  open(byPage = false): void {
     this.root.showModal();
+    if (byPage) this.root.focus();
   }
 
   /** Shows the texts in the current language. */
@@ -48,7 +56,7 @@ export class RulesDialog {
     this.closeButton.setAttribute('aria-label', strings.close);
     this.rules.replaceChildren(...strings.rules.map((rule) => h('li', {}, rule)));
     this.aboutTitle.textContent = strings.aboutTitle;
-    this.aboutText.textContent = strings.aboutText;
+    this.aboutText.replaceChildren(...strings.aboutText.map((paragraph) => h('p', {}, paragraph)));
     this.stats.replaceChildren(
       ...strings.stats.map((stat) => h('div', { class: 'stat' }, h('dt', {}, stat.label), h('dd', {}, stat.value))),
     );

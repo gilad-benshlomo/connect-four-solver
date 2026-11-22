@@ -60,7 +60,8 @@ export type Strings = {
   rulesTitle: string;
   rules: string[];
   aboutTitle: string;
-  aboutText: string;
+  /** Two paragraphs: what the computer can do, then how it is built to do it fast. */
+  aboutText: readonly [string, string];
   stats: Stat[];
   gotIt: string;
   close: string;
@@ -119,11 +120,13 @@ const en: Strings = {
     'If the board fills up with no line of four, it’s a draw.',
   ],
   aboutTitle: 'About the computer',
-  aboutText:
-    'On every turn it checks every possible continuation to the end of the game and picks the best move: the fastest win, or the slowest loss. The opening moves, the hardest to work out, were computed in advance. And it all runs in your browser, in code written from scratch.',
+  aboutText: [
+    'James D. Allen and Victor Allis proved that in Connect Four, the player who goes first and never makes a mistake always wins. This computer never makes a mistake. If it goes first, you can’t beat it. If you choose to go first, you can win, but only if you play without a single mistake. One mistake, and the win is gone: at best, a draw.',
+    'For all this to happen in real time, it’s built to decide fast. The whole board is encoded in two numbers, so checking for a win takes a few arithmetic operations. On every turn it searches the game tree again, to the end: trying the most threatening moves first, skipping branches that provably can’t change the result, and remembering positions it has already worked out. The opening, where the tree is largest, was solved in advance. The search runs apart from the page, so the page never freezes, and it all happens in your browser, in code written from scratch.',
+  ],
   stats: [
-    { value: '4.5 trillion', label: 'possible positions on the board' },
-    { value: '3,857', label: 'opening positions computed in advance' },
+    { value: '4,531,985,219,092', label: 'possible positions on the board' },
+    { value: '3,857', label: 'opening positions solved in advance' },
     { value: '1988', label: 'the year the game was solved mathematically' },
   ],
   gotIt: 'Got it',
@@ -180,11 +183,13 @@ const heMasculine: Strings = {
     'אם הלוח מתמלא בלי רצף, זה תיקו.',
   ],
   aboutTitle: 'על המחשב',
-  aboutText:
-    'בכל תור הוא בודק את כל ההמשכים האפשריים עד סוף המשחק, ובוחר את המהלך הטוב ביותר: הניצחון המהיר ביותר, או ההפסד האיטי ביותר. את מהלכי הפתיחה, הכבדים ביותר לחישוב, הוא חישב מראש. והכל רץ בדפדפן שלך, בקוד שנכתב מאפס.',
+  aboutText: [
+    'ג׳יימס אלן וויקטור אליס הוכיחו שבארבע בשורה, מי שמתחיל ומשחק בלי אף טעות מנצח תמיד. המחשב הזה משחק בלי אף טעות. אם הוא מתחיל, אי אפשר לנצח אותו. אם תבחר להתחיל, תוכל לנצח, אבל רק אם תשחק בלי אף טעות. טעות אחת, והניצחון כבר לא אפשרי: במקרה הטוב, תיקו.',
+    'כדי שכל זה יקרה בזמן אמת, הוא בנוי להחליט במהירות. כל הלוח מקודד בשני מספרים, כך שבדיקת ניצחון היא כמה פעולות חשבון. בכל תור הוא סורק מחדש את עץ המשחק עד הסוף: בוחן קודם את המהלכים המאיימים, מדלג על ענפים שמוכח שלא ישנו את התוצאה, וזוכר עמדות שכבר חישב. את הפתיחה, שבה העץ הכי גדול, פתר מראש. החישוב רץ בנפרד מהדף, כך שהדף אף פעם לא נתקע, והכל קורה בדפדפן שלך, בקוד שנכתב מאפס.',
+  ],
   stats: [
-    { value: '4.5 טריליון', label: 'עמדות אפשריות בלוח' },
-    { value: '3,857', label: 'עמדות פתיחה שחושבו מראש' },
+    { value: '4,531,985,219,092', label: 'עמדות אפשריות בלוח' },
+    { value: '3,857', label: 'עמדות פתיחה שנפתרו מראש' },
     { value: '1988', label: 'השנה שבה המשחק נפתר מתמטית' },
   ],
   gotIt: 'הבנתי',
@@ -208,6 +213,7 @@ export const ADDRESSED_KEYS = [
   'computerStartedMessage',
   'playerStartedMessage',
   'drawMessage',
+  'aboutText',
   'you',
 ] as const satisfies readonly (keyof Strings)[];
 
@@ -221,6 +227,10 @@ const heFeminine: Strings = {
   drawMessage:
     'כל הכבוד, את כמעט שם. תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. רק משחק מושלם משיג יותר.',
   you: 'את',
+  aboutText: [
+    'ג׳יימס אלן וויקטור אליס הוכיחו שבארבע בשורה, מי שמתחיל ומשחק בלי אף טעות מנצח תמיד. המחשב הזה משחק בלי אף טעות. אם הוא מתחיל, אי אפשר לנצח אותו. אם תבחרי להתחיל, תוכלי לנצח, אבל רק אם תשחקי בלי אף טעות. טעות אחת, והניצחון כבר לא אפשרי: במקרה הטוב, תיקו.',
+    heMasculine.aboutText[1],
+  ],
 };
 
 /** All three versions, exported for the tests. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultLanguage, loadSettings, saveSettings, type SettingsStore } from './settings';
+import { defaultLanguage, introDue, loadSettings, markIntroShown, saveSettings, type SettingsStore } from './settings';
 
 /** A store kept in a Map, as localStorage would keep it. */
 function memoryStore(): SettingsStore & { data: Map<string, string> } {
@@ -65,5 +65,28 @@ describe('loading and saving', () => {
   it('never throws when the browser blocks storage', () => {
     expect(loadSettings(brokenStore, ['he'])).toEqual({ language: 'he', address: 'masculine' });
     expect(() => saveSettings(brokenStore, { language: 'en', address: 'masculine' })).not.toThrow();
+  });
+});
+
+describe('the window shown once per visit', () => {
+  it('is due in a new visit, and not again once shown', () => {
+    const session = memoryStore();
+    expect(introDue(session)).toBe(true);
+    markIntroShown(session);
+    expect(introDue(session)).toBe(false);
+  });
+
+  it('is shown when storage is missing or blocked, without throwing', () => {
+    expect(introDue(null)).toBe(true);
+    expect(introDue(brokenStore)).toBe(true);
+    expect(() => markIntroShown(brokenStore)).not.toThrow();
+    expect(() => markIntroShown(null)).not.toThrow();
+  });
+
+  it('does not touch the saved settings', () => {
+    const store = memoryStore();
+    saveSettings(store, { language: 'he', address: 'feminine' });
+    markIntroShown(store);
+    expect(loadSettings(store, ['en'])).toEqual({ language: 'he', address: 'feminine' });
   });
 });

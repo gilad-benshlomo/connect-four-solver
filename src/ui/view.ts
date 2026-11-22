@@ -106,7 +106,7 @@ export class GameView {
       h('footer', { class: 'footer' }, this.rulesButton, this.sourceLink),
       this.rules.root,
     );
-    this.rulesButton.addEventListener('click', () => this.rules.open());
+    this.rulesButton.addEventListener('click', () => this.openRules());
     container.replaceChildren(this.root);
   }
 
@@ -170,6 +170,15 @@ export class GameView {
   setNewGameHandler(handler: () => void): void {
     this.newGameButton.addEventListener('click', handler);
     this.playAgainButton.addEventListener('click', handler);
+  }
+
+  /**
+   * Opens the "How to play" window, with the panel about the computer.
+   *
+   * @param byPage true when the page opens it by itself, on arrival
+   */
+  openRules(byPage = false): void {
+    this.rules.open(byPage);
   }
 
   /** Moves the keyboard focus to where the next action is, after the page changed around it. */

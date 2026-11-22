@@ -67,6 +67,14 @@ describe('strings', () => {
     expect(ALL_STRINGS.heFeminine.startExplanation[0]).toBe(ALL_STRINGS.heMasculine.startExplanation[0]);
   });
 
+  it('tells about the computer in two paragraphs, the second the same in both Hebrew versions', () => {
+    for (const [, strings] of VERSIONS) {
+      expect(strings.aboutText).toHaveLength(2);
+    }
+    // Only the first paragraph addresses the player.
+    expect(ALL_STRINGS.heFeminine.aboutText[1]).toBe(ALL_STRINGS.heMasculine.aboutText[1]);
+  });
+
   it('counts the moves the player lasted, one or many', () => {
     expect(ALL_STRINGS.en.lasted(1)).toBe('You lasted 1 move.');
     expect(ALL_STRINGS.en.lasted(7)).toBe('You lasted 7 moves.');

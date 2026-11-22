@@ -787,6 +787,11 @@ a:hover {
   line-height: 1.45;
 }
 
+/* The window itself takes the focus only when the page opens it; it needs no ring. */
+.rules:focus {
+  outline: none;
+}
+
 /* The panel about the computer wears the board's blue. */
 .about {
   display: flex;
@@ -807,17 +812,33 @@ a:hover {
 }
 
 .about-text {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   font-size: 14px;
   line-height: 1.55;
   color: #e6edfd;
 }
 
+.about-text p {
+  margin: 0;
+}
+
 .about-stats {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+
+/* The exact number of positions is the headline: it gets a row of its own. */
+.stat:first-child {
+  grid-column: 1 / -1;
+}
+
+.stat:first-child dd {
+  font-size: 26px;
+  line-height: 1.15;
 }
 
 /* Each number is shown above its label, though the label comes first for screen readers. */
@@ -838,6 +859,7 @@ a:hover {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -861,5 +883,9 @@ a:hover {
 
   .stat dd {
     font-size: 20px;
+  }
+
+  .stat:first-child dd {
+    font-size: 32px;
   }
 }

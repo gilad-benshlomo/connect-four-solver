@@ -46,6 +46,31 @@ export function loadSettings(store: SettingsStore | null, browserLanguages: read
   };
 }
 
+const INTRO_KEY = 'connect-four-solver:intro-shown';
+
+/**
+ * True if the "How to play" window has not been shown yet in this visit. The
+ * page keeps this in sessionStorage, which lasts while the tab is open
+ * (reloads included) and is gone in a new tab or a new browser session. If
+ * storage is blocked, the window is shown. Never throws.
+ */
+export function introDue(session: SettingsStore | null): boolean {
+  try {
+    return session?.getItem(INTRO_KEY) !== 'yes';
+  } catch {
+    return true;
+  }
+}
+
+/** Notes that the "How to play" window was shown in this visit. Never throws. */
+export function markIntroShown(session: SettingsStore | null): void {
+  try {
+    session?.setItem(INTRO_KEY, 'yes');
+  } catch {
+    // Blocked storage: the window may show again after a reload, which is harmless.
+  }
+}
+
 /** Saves the settings for the next visit, if the browser lets it. Never throws. */
 export function saveSettings(store: SettingsStore | null, settings: Settings): void {
   try {

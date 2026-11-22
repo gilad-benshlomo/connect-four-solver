@@ -11,7 +11,7 @@ import '@fontsource/ibm-plex-sans-hebrew/hebrew-700.css';
 import './style.css';
 import type { SolverResponse } from './solver/solver.worker';
 import { App } from './ui/app';
-import { loadSettings, type SettingsStore } from './ui/settings';
+import { introDue, loadSettings, markIntroShown, type SettingsStore } from './ui/settings';
 import { SolverClient } from './ui/solverClient';
 import { GameView } from './ui/view';
 
@@ -27,14 +27,23 @@ const solver = new SolverClient((request) => worker.postMessage(request));
 worker.onmessage = (event: MessageEvent<SolverResponse>) => solver.receive(event.data);
 worker.onerror = (event) => solver.failAll(event.message || 'The solver stopped working');
 
-/** The browser's storage, or null where even reaching it is blocked. */
-function browserStorage(): SettingsStore | null {
+/** One of the browser's storages, or null where even reaching it is blocked. */
+function browserStorage(kind: 'localStorage' | 'sessionStorage'): SettingsStore | null {
   try {
-    return window.localStorage;
+    return window[kind];
   } catch {
     return null;
   }
 }
 
-const store = browserStorage();
-new App(new GameView(container), solver, loadSettings(store, navigator.languages), store);
+const store = browserStorage('localStorage');
+const view = new GameView(container);
+new App(view, solver, loadSettings(store, navigator.languages), store);
+
+// Every visit opens with "How to play" and the panel about the computer;
+// reloading or playing again in the same tab does not open it again.
+const session = browserStorage('sessionStorage');
+if (introDue(session)) {
+  view.openRules(true);
+  markIntroShown(session);
+}
