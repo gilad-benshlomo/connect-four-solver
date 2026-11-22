@@ -1,11 +1,13 @@
-import '@fontsource/ibm-plex-sans/400.css';
-import '@fontsource/ibm-plex-sans/500.css';
-import '@fontsource/ibm-plex-sans/600.css';
-import '@fontsource/ibm-plex-sans/700.css';
-import '@fontsource/ibm-plex-sans-hebrew/400.css';
-import '@fontsource/ibm-plex-sans-hebrew/500.css';
-import '@fontsource/ibm-plex-sans-hebrew/600.css';
-import '@fontsource/ibm-plex-sans-hebrew/700.css';
+// Only the Latin letters of IBM Plex Sans and the Hebrew letters of IBM Plex Sans Hebrew:
+// the page needs no other alphabet, so nothing else is shipped.
+import '@fontsource/ibm-plex-sans/latin-400.css';
+import '@fontsource/ibm-plex-sans/latin-500.css';
+import '@fontsource/ibm-plex-sans/latin-600.css';
+import '@fontsource/ibm-plex-sans/latin-700.css';
+import '@fontsource/ibm-plex-sans-hebrew/hebrew-400.css';
+import '@fontsource/ibm-plex-sans-hebrew/hebrew-500.css';
+import '@fontsource/ibm-plex-sans-hebrew/hebrew-600.css';
+import '@fontsource/ibm-plex-sans-hebrew/hebrew-700.css';
 import './style.css';
 import type { SolverResponse } from './solver/solver.worker';
 import { App } from './ui/app';
