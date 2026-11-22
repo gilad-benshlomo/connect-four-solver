@@ -58,6 +58,15 @@ describe('SolverClient', () => {
     expect(() => client.receive({ id: sent[0].id, column: 3 })).not.toThrow();
   });
 
+  it('fails new questions at once after the worker has stopped, instead of waiting for ever', async () => {
+    // The worker can fail to load before anything was asked (seen in the browser with a missing file).
+    const { client, sent } = makeClient();
+    client.failAll('The solver could not start');
+    await expect(client.ask([])).rejects.toThrow('The solver could not start');
+    expect(sent).toEqual([]);
+    expect(client.waiting).toBe(0);
+  });
+
   it('sends a copy of the moves, not the caller\'s list', () => {
     const { client, sent } = makeClient();
     const moves = [3, 2];

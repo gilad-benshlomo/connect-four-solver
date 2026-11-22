@@ -14,6 +14,8 @@ export class SolverClient {
   private readonly send: (request: SolverRequest) => void;
   private readonly pending = new Map<number, Pending>();
   private nextId = 1;
+  /** Why the worker stopped, once it has; every later question fails with it. */
+  private stopped: string | null = null;
 
   /** @param send delivers a request to the worker (in the page: `worker.postMessage`). */
   constructor(send: (request: SolverRequest) => void) {
@@ -25,6 +27,7 @@ export class SolverClient {
    * Rejects if the solver reports an error, or if the worker stops working.
    */
   ask(moves: readonly number[]): Promise<number> {
+    if (this.stopped !== null) return Promise.reject(new Error(this.stopped));
     const id = this.nextId++;
     return new Promise<number>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -42,8 +45,12 @@ export class SolverClient {
     else request.reject(new Error(response.error));
   }
 
-  /** The worker stopped working (it failed to load, or crashed): every open question fails. */
+  /**
+   * The worker stopped working (it failed to load, or crashed): every open
+   * question fails, and so does every later one, since no answer will come.
+   */
   failAll(message: string): void {
+    this.stopped = message;
     const open = [...this.pending.values()];
     this.pending.clear();
     for (const request of open) request.reject(new Error(message));
