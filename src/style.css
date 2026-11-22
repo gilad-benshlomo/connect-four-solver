@@ -399,3 +399,109 @@ a:hover {
     animation: none;
   }
 }
+
+/* ---------- Status ---------- */
+
+.status {
+  grid-area: status;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status[hidden] {
+  display: none;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.status-disc {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.status-disc.human {
+  background: radial-gradient(circle at 34% 28%, #e8565c 0%, #c41e26 52%, #8e131a 100%);
+}
+
+.status-disc.computer {
+  background: radial-gradient(circle at 34% 28%, #ffe58a 0%, #ffc21a 52%, #d48f00 100%);
+}
+
+.status-disc.none {
+  display: none;
+}
+
+.status-detail {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.dots[hidden] {
+  display: none;
+}
+
+.dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  animation: blink 1.2s infinite;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (min-width: 880px) {
+  .status-line {
+    font-size: 24px;
+  }
+
+  .status {
+    margin-bottom: 28px;
+  }
+}
+
+/* On a phone, the status takes the subtitle's place once a game is on. */
+@media (max-width: 879px) {
+  .page:not([data-phase='choosing']) .subtitle {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots span {
+    animation: none;
+    opacity: 0.5;
+  }
+}

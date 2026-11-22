@@ -7,39 +7,23 @@ import '@fontsource/ibm-plex-sans-hebrew/500.css';
 import '@fontsource/ibm-plex-sans-hebrew/600.css';
 import '@fontsource/ibm-plex-sans-hebrew/700.css';
 import './style.css';
-import { humanMove, initialFlow, startGame, type Flow } from './ui/flow';
+import type { SolverResponse } from './solver/solver.worker';
+import { App } from './ui/app';
+import { SolverClient } from './ui/solverClient';
 import { stringsFor } from './ui/strings';
 import { GameView } from './ui/view';
 
-const app = document.querySelector<HTMLDivElement>('#app');
+const container = document.querySelector<HTMLDivElement>('#app');
 
-if (!app) {
+if (!container) {
   throw new Error('Missing #app element in index.html');
 }
 
-const view = new GameView(app);
-view.setStrings(stringsFor('en', 'masculine'), 'en');
+// The solver runs in its own thread, so the page never freezes while it thinks.
+const worker = new Worker(new URL('./solver/solver.worker.ts', import.meta.url), { type: 'module' });
+const solver = new SolverClient((request) => worker.postMessage(request));
+worker.onmessage = (event: MessageEvent<SolverResponse>) => solver.receive(event.data);
+worker.onerror = (event) => solver.failAll(event.message || 'The solver stopped working');
 
-let flow: Flow = startGame(initialFlow(), 'human');
-
-/** Draws the board and the disc waiting above it. */
-function render(): void {
-  view.board.render(flow);
-  renderHovering();
-}
-
-function renderHovering(): void {
-  const column = view.board.hoveredColumn;
-  view.board.renderHovering(
-    flow.phase.kind === 'humanTurn' && column !== null ? { kind: 'ghost', column } : { kind: 'none' },
-  );
-}
-
-view.board.setColumnHandler((column) => {
-  const next = humanMove(flow, column);
-  if (next === flow) return;
-  flow = next;
-  render();
-});
-view.board.setHoverHandler(renderHovering);
-render();
+const app = new App(new GameView(container), solver, stringsFor('en', 'masculine'), 'en');
+app.start('human');
