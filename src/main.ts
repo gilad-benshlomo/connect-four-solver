@@ -38,7 +38,7 @@ function browserStorage(kind: 'localStorage' | 'sessionStorage'): SettingsStore 
 
 const store = browserStorage('localStorage');
 const view = new GameView(container);
-new App(view, solver, loadSettings(store, navigator.languages), store);
+new App(view, solver, loadSettings(store), store);
 
 // Every visit opens with "How to play" and the panel about the computer;
 // reloading or playing again in the same tab does not open it again.

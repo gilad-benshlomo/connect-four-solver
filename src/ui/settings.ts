@@ -1,7 +1,7 @@
 /**
- * The player's language and, in Hebrew, form of address. The first visit
- * follows the browser's language; after that, the player's own choice is
- * kept in the browser for the next visit. Storage can be missing or refuse
+ * The player's language and, in Hebrew, form of address. The first visit is
+ * in Hebrew, addressed in the masculine; after that, the player's own choice
+ * is kept in the browser for the next visit. Storage can be missing or refuse
  * to work (private browsing, blocked cookies), so every use of it is guarded
  * and the page simply falls back to the defaults.
  */
@@ -17,19 +17,15 @@ export type SettingsStore = {
 
 const STORAGE_KEY = 'connect-four-solver:settings';
 
-/** Hebrew if the browser's preferred language is Hebrew, English otherwise. */
-export function defaultLanguage(browserLanguages: readonly string[]): Language {
-  const preferred = (browserLanguages[0] ?? '').toLowerCase();
-  // 'iw' is an old code for Hebrew that some systems still report.
-  return preferred.startsWith('he') || preferred.startsWith('iw') ? 'he' : 'en';
-}
+/** What a player who has not chosen yet gets: Hebrew, addressed in the masculine. */
+export const DEFAULT_SETTINGS: Settings = { language: 'he', address: 'masculine' };
 
 /**
  * The saved settings, with the defaults for anything missing or unreadable.
  * Never throws.
  */
-export function loadSettings(store: SettingsStore | null, browserLanguages: readonly string[]): Settings {
-  const defaults: Settings = { language: defaultLanguage(browserLanguages), address: 'masculine' };
+export function loadSettings(store: SettingsStore | null): Settings {
+  const defaults = DEFAULT_SETTINGS;
   let saved: unknown;
   try {
     const text = store?.getItem(STORAGE_KEY);

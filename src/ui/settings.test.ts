@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultLanguage, introDue, loadSettings, markIntroShown, saveSettings, type SettingsStore } from './settings';
+import { DEFAULT_SETTINGS, introDue, loadSettings, markIntroShown, saveSettings, type SettingsStore } from './settings';
 
 /** A store kept in a Map, as localStorage would keep it. */
 function memoryStore(): SettingsStore & { data: Map<string, string> } {
@@ -21,30 +21,19 @@ const brokenStore: SettingsStore = {
   },
 };
 
-describe('defaultLanguage', () => {
-  it('is Hebrew when the browser prefers Hebrew', () => {
-    expect(defaultLanguage(['he-IL', 'en-US'])).toBe('he');
-    expect(defaultLanguage(['he'])).toBe('he');
-    expect(defaultLanguage(['iw'])).toBe('he');
-  });
-
-  it('is English otherwise, even if Hebrew comes second', () => {
-    expect(defaultLanguage(['en-US', 'he-IL'])).toBe('en');
-    expect(defaultLanguage(['fr-FR'])).toBe('en');
-    expect(defaultLanguage([])).toBe('en');
-  });
-});
-
 describe('loading and saving', () => {
-  it('starts from the browser\'s language and the masculine form', () => {
-    expect(loadSettings(memoryStore(), ['he-IL'])).toEqual({ language: 'he', address: 'masculine' });
-    expect(loadSettings(null, ['en-GB'])).toEqual({ language: 'en', address: 'masculine' });
+  it('starts in Hebrew, addressed in the masculine, until the player chooses', () => {
+    expect(DEFAULT_SETTINGS).toEqual({ language: 'he', address: 'masculine' });
+    expect(loadSettings(memoryStore())).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('gives back what was saved, whatever the browser prefers', () => {
+  it('gives back what was saved', () => {
     const store = memoryStore();
+    saveSettings(store, { language: 'en', address: 'masculine' });
+    expect(loadSettings(store)).toEqual({ language: 'en', address: 'masculine' });
     saveSettings(store, { language: 'he', address: 'feminine' });
-    expect(loadSettings(store, ['en-US'])).toEqual({ language: 'he', address: 'feminine' });
+    expect(loadSettings(store)).toEqual({ language: 'he', address: 'feminine' });
   });
 
   it('falls back to the defaults for unreadable or unknown saved values', () => {
@@ -53,17 +42,20 @@ describe('loading and saving', () => {
     saveSettings(store, { language: 'he', address: 'feminine' });
 
     store.data.set(key(), 'not json');
-    expect(loadSettings(store, ['en'])).toEqual({ language: 'en', address: 'masculine' });
+    expect(loadSettings(store)).toEqual(DEFAULT_SETTINGS);
 
     store.data.set(key(), JSON.stringify({ language: 'fr', address: 'feminine' }));
-    expect(loadSettings(store, ['en'])).toEqual({ language: 'en', address: 'feminine' });
+    expect(loadSettings(store)).toEqual({ language: 'he', address: 'feminine' });
+
+    store.data.set(key(), JSON.stringify({ language: 'en', address: 'plural' }));
+    expect(loadSettings(store)).toEqual({ language: 'en', address: 'masculine' });
 
     store.data.set(key(), JSON.stringify(null));
-    expect(loadSettings(store, ['he'])).toEqual({ language: 'he', address: 'masculine' });
+    expect(loadSettings(store)).toEqual(DEFAULT_SETTINGS);
   });
 
   it('never throws when the browser blocks storage', () => {
-    expect(loadSettings(brokenStore, ['he'])).toEqual({ language: 'he', address: 'masculine' });
+    expect(loadSettings(brokenStore)).toEqual(DEFAULT_SETTINGS);
     expect(() => saveSettings(brokenStore, { language: 'en', address: 'masculine' })).not.toThrow();
   });
 });
@@ -87,6 +79,6 @@ describe('the window shown once per visit', () => {
     const store = memoryStore();
     saveSettings(store, { language: 'he', address: 'feminine' });
     markIntroShown(store);
-    expect(loadSettings(store, ['en'])).toEqual({ language: 'he', address: 'feminine' });
+    expect(loadSettings(store)).toEqual({ language: 'he', address: 'feminine' });
   });
 });
