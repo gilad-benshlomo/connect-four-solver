@@ -10,6 +10,7 @@ import '@fontsource/ibm-plex-sans-hebrew/hebrew-600.css';
 import '@fontsource/ibm-plex-sans-hebrew/hebrew-700.css';
 import './style.css';
 import type { SolverResponse } from './solver/solver.worker';
+import { sendEvent } from './ui/analytics';
 import { App } from './ui/app';
 import { introDue, loadSettings, markIntroShown, type SettingsStore } from './ui/settings';
 import { SolverClient } from './ui/solverClient';
@@ -38,7 +39,8 @@ function browserStorage(kind: 'localStorage' | 'sessionStorage'): SettingsStore 
 
 const store = browserStorage('localStorage');
 const view = new GameView(container);
-new App(view, solver, loadSettings(store), store);
+// Games started and ended are counted with GoatCounter (D35), if its script has loaded.
+new App(view, solver, loadSettings(store), store, (event) => sendEvent(window.goatcounter, event));
 
 // Every visit opens with "How to play" and the panel about the computer;
 // reloading or playing again in the same tab does not open it again.

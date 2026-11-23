@@ -14,6 +14,7 @@ import {
   type Flow,
   type Starter,
 } from './flow';
+import { gameEvents } from './analytics';
 import { DRAW_SHOW_MS, WIN_SHOW_MS } from './fireworks';
 import { saveSettings, type Settings, type SettingsStore } from './settings';
 import type { SolverClient } from './solverClient';
@@ -50,15 +51,24 @@ export class App {
   private readonly view: GameView;
   private readonly solver: SolverClient;
   private readonly store: SettingsStore | null;
+  private readonly count: (event: string) => void;
 
   /**
    * @param settings the language and form of address to start with
    * @param store where the player's choices are kept for the next visit (null: not kept)
+   * @param count counts an event: a game started or ended (analytics.ts; by default, nothing)
    */
-  constructor(view: GameView, solver: SolverClient, settings: Settings, store: SettingsStore | null) {
+  constructor(
+    view: GameView,
+    solver: SolverClient,
+    settings: Settings,
+    store: SettingsStore | null,
+    count: (event: string) => void = () => {},
+  ) {
     this.view = view;
     this.solver = solver;
     this.store = store;
+    this.count = count;
     this.settings = settings;
     this.strings = stringsFor(settings.language, settings.address);
     view.board.setColumnHandler((column) => this.update(humanMove(this.flow, column)));
@@ -88,6 +98,7 @@ export class App {
   private update(next: Flow): void {
     if (next === this.flow) return;
     const wasOver = this.flow.phase.kind === 'over';
+    const events = gameEvents(this.flow, next);
     this.flow = next;
     // Fireworks when the player wins, shorter ones for a draw; a new game ends any still going.
     if (next.phase.kind === 'over' && !wasOver) {
@@ -101,6 +112,8 @@ export class App {
     // move the focus to whatever comes next instead of leaving it nowhere.
     if (lostFocus()) this.view.focusNextAction(next.phase);
     if (next.phase.kind === 'computerTurn') this.askComputer();
+    // Counted last, after the page has been updated.
+    for (const event of events) this.count(event);
   }
 
   private render(): void {
