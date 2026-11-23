@@ -4,6 +4,7 @@
  * the keyboard focus inside it and closes it with Escape.
  */
 import { h } from './dom';
+import { rulesExample } from './rulesExample';
 import type { Strings } from './strings';
 
 export class RulesDialog {
@@ -29,11 +30,23 @@ export class RulesDialog {
       'dialog',
       // tabindex lets the window itself take the focus (see open).
       { class: 'rules', 'aria-labelledby': 'rules-game-title', tabindex: '-1' },
-      // The game's name first: a visitor who arrives from a link sees this window before the page.
-      h('div', { class: 'rules-head' }, h('div', {}, this.gameTitle, this.gameSubtitle), this.closeButton),
-      h('section', { class: 'rules-section' }, this.title, this.rules),
+      // On wide screens the window has two panels: the game and its rules, then the
+      // algorithm. On a phone the first panel's wrapper does not take part in the
+      // layout, so everything stacks as one column (see style.css).
+      h(
+        'div',
+        { class: 'rules-main' },
+        // The game's name first: a visitor who arrives from a link sees this window before the page.
+        h(
+          'div',
+          { class: 'rules-head' },
+          h('div', { class: 'rules-name' }, discDots(), h('div', { class: 'rules-name-text' }, this.gameTitle, this.gameSubtitle)),
+          this.closeButton,
+        ),
+        h('section', { class: 'rules-section' }, this.title, this.rules),
+        h('div', { class: 'rules-footer' }, exampleBoard(), this.gotItButton),
+      ),
       h('section', { class: 'about', 'aria-labelledby': 'about-title' }, this.aboutTitle, this.aboutText, this.aboutPoints, this.aboutClosing, this.stats),
-      this.gotItButton,
     );
     this.closeButton.addEventListener('click', () => this.root.close());
     this.gotItButton.addEventListener('click', () => this.root.close());
@@ -71,6 +84,45 @@ export class RulesDialog {
     );
     this.gotItButton.textContent = strings.gotIt;
   }
+}
+
+/** Four discs in the game's colours, above the game's name on wide screens. */
+function discDots(): HTMLElement {
+  return h(
+    'span',
+    { class: 'rules-dots', 'aria-hidden': 'true' },
+    h('span', { class: 'red' }),
+    h('span', { class: 'yellow' }),
+    h('span', { class: 'red' }),
+    h('span', { class: 'yellow' }),
+  );
+}
+
+/**
+ * A small board that ends with four red discs in a diagonal, outlined as in the
+ * game, shown next to the rules on wide screens. It uses the game board's own
+ * classes, so it looks exactly like the real one. The rules already say it in
+ * words, so screen readers skip it.
+ */
+function exampleBoard(): HTMLElement {
+  const { cells, line } = rulesExample();
+  const discs = h('div', { class: 'discs' });
+  const face = h('div', { class: 'face' });
+  // Rows from the top, as the grid lays them out (as in BoardView).
+  for (let row = cells[0].length - 1; row >= 0; row--) {
+    for (let column = 0; column < cells.length; column++) {
+      const slot = h('div', { class: 'slot' });
+      const cell = cells[column][row];
+      if (cell !== 'empty') {
+        const isWin = line.some((winning) => winning.column === column && winning.row === row);
+        // The winner is red, the player's colour, so the example shows the player winning.
+        slot.append(h('div', { class: `disc ${cell === 'winner' ? 'human' : 'computer'} ${isWin ? 'win' : 'dim'}` }));
+      }
+      discs.append(slot);
+      face.append(h('div', { class: 'hole' }));
+    }
+  }
+  return h('div', { class: 'board rules-example', dir: 'ltr', 'aria-hidden': 'true' }, discs, face);
 }
 
 /** An X drawn with two lines, in the text colour. */

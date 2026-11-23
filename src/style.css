@@ -211,14 +211,19 @@ a:hover {
  * the same size drawn over them, each cell painted blue around a transparent
  * hole, so a falling disc passes behind the face.
  */
-.board-area {
-  --pad: 10px;
+/* The disc colours, for the board and for the example board in the rules window. */
+.board-area,
+.rules {
   --red-light: #e8565c;
   --red: #c41e26;
   --red-dark: #8e131a;
   --yellow-light: #ffe58a;
   --yellow: #ffc21a;
   --yellow-dark: #d48f00;
+}
+
+.board-area {
+  --pad: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -910,9 +915,168 @@ a:hover {
   width: 100%;
 }
 
+/*
+ * On a phone the window is one column: the first panel's wrappers take no part
+ * in the layout, the example board and the dots are hidden, and the button
+ * stays last, after the algorithm.
+ */
+.rules-main,
+.rules-footer {
+  display: contents;
+}
+
+.rules-dots,
+.rules-example {
+  display: none;
+}
+
+.rules .primary-button {
+  order: 1;
+}
+
+/*
+ * On wide screens: two panels side by side, the game and its rules on white,
+ * the algorithm on the board's blue, with the close button in its corner.
+ */
 @media (min-width: 880px) {
   .rules {
-    padding: 28px 28px 24px;
+    position: relative;
+    width: min(1080px, calc(100vw - 64px));
+    max-height: calc(100svh - 48px);
+    padding: 0;
+    overflow: auto;
+  }
+
+  .rules[open] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .rules-main {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    padding: 40px 44px 36px;
+  }
+
+  .rules-name {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .rules-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .rules-dots span {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+  }
+
+  .rules-dots .red {
+    background: radial-gradient(circle at 34% 28%, var(--red-light) 0%, var(--red) 60%);
+  }
+
+  .rules-dots .yellow {
+    background: radial-gradient(circle at 34% 28%, var(--yellow-light) 0%, var(--yellow) 60%);
+  }
+
+  /* The name and the subtitle on one line, underlined together. */
+  .rules-name-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 16px;
+    row-gap: 4px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--line);
+  }
+
+  .rules-game-title {
+    font-size: 44px;
+  }
+
+  .rules-game-subtitle {
+    margin: 0;
+    font-size: 19px;
+  }
+
+  /* With no button, the X is the way out: a little larger, and light on the blue. */
+  .rules-head .icon-button {
+    position: absolute;
+    top: 20px;
+    inset-inline-end: 20px;
+    z-index: 1;
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--surface);
+  }
+
+  .rules-head .icon-button:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .rules-head .icon-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* The usual blue focus ring would vanish on the blue panel. */
+  .rules-head .icon-button:focus-visible {
+    outline-color: var(--surface);
+  }
+
+  .rules-title {
+    font-size: 22px;
+  }
+
+  .rules-list {
+    gap: 8px;
+    font-size: 17px;
+  }
+
+  /* The rule the example board shows. */
+  .rules-list li:nth-child(3) {
+    font-weight: 700;
+  }
+
+  /*
+   * The example board closes the panel. On a wide screen the window has no
+   * button: it closes with the X, a click outside it, or Escape.
+   */
+  .rules-footer {
+    margin-top: auto;
+    display: flex;
+  }
+
+  .rules .primary-button {
+    display: none;
+  }
+
+  .rules-example {
+    --pad: 7px;
+    display: block;
+    width: 230px;
+    flex: none;
+  }
+
+  .rules-example .disc.win {
+    box-shadow:
+      inset 0 0 0 2px var(--surface),
+      inset 0 0 0 4px var(--ink);
+  }
+
+  .about {
+    justify-content: center;
+    gap: 14px;
+    padding: 72px 44px 40px;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .rules-list {
