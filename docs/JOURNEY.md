@@ -441,6 +441,34 @@ Then, from checking in the browser: the solver client now fails at once when the
 - A timing check that runs two pages side by side waits for the slower one; check timings one at a time.
 - Wording takes as many rounds as code; small changes ("but", a comma, the order of two clauses) change the tone.
 
+### 2026-11-23 — The rules window and the end-of-game texts
+Started by asking whether visits to the live site can be counted (GitHub Pages shows none; the repository's Insights → Traffic counts only visits to the repository). Options: GoatCounter (free for non-commercial use, no cookies), Cloudflare Web Analytics, or Google Analytics (cookies, so a consent banner). Left for later; if added, it needs a decision of its own beside D29's "no tracking".
+
+**The window that opens on arrival** (`49244a3`, `7ebaa1b`), reviewed through five rounds of screenshots before anything was committed:
+- It now starts with the game's title and subtitle ("Connect Four", "You against a perfect solver."), since it covers the page on a first visit and a visitor could not tell where they were.
+- "How to play" became "Rules of the game" and "About the computer" became "The algorithm", in the window and in the footer link ("Rules & the algorithm").
+- The panel has three short paragraphs: the proof and "This computer plays perfectly"; then, on its own, what that means for a player who goes first ("…only if you play perfectly. One mistake, and the win is gone: at most, a draw."); then the line that opens a list of how the algorithm decides fast, four points without bullets, and a closing line. The point about the opening was dropped, since the "3,857 opening positions solved in advance" number already says it.
+- Asked whether "the computer" and "the algorithm" mean the same thing: the computer is the opponent (what it does), the algorithm is the method (how it decides); the text keeps that split.
+- The two section headings are the same size.
+
+**The texts after a win and a draw** (`00885d6`), worded by the user: a win says "To get here, you played a perfect game, N moves without a single mistake. Well done!" (the same for both Hebrew forms of address); a draw ends with "A little more and the win is yours".
+
+**A gap in the tests, found by a deliberate break** (`0240d3a`): a masculine ending put into the feminine draw message passed every test, because the existing check only compares the two versions, and this text already differed. A new test looks for masculine words in every addressed feminine text; the same break then failed it.
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| One point missing from the Hebrew list | The test that every version has the same points |
+| "ואתה מגיע" in the feminine draw message | Nothing at first (1 failure was predicted); after the new test, that test |
+
+**Measured:** tests: 229 here, 233 on the user's PC. The page's code is about 28 KB (about 9.7 KB compressed).
+
+**Lessons:**
+- A test that compares two versions only proves they differ, not that each one is right; a deliberate break with a wrong prediction found it.
+- Show a design change as a screenshot of the real page before committing it; it took five rounds to get the window right, and none of them cost a commit.
+- When shooting the end of a game, the screenshot scripts now mark the window as already shown, or it covers the board.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -553,6 +581,7 @@ Then, from checking in the browser: the solver client now fails at once when the
 - `src/ui/`: `strings`, `flow`, `solverClient`, `status`, `settings` (logic, with tests), and `view`, `boardView`, `rulesDialog`, `app`, `dom` (the page); `src/style.css`; `src/main.ts` wires the worker and the app.
 - 211 tests in 20 files; in CI the 4 tests that read the published files are skipped.
 - After the review (afternoon): `fireworks`, `fireworksView`, the once-per-visit window and the new texts; 227 tests in 21 files (231 with the published files).
+- 2026-11-23: the rules window and the end-of-game texts reworded; 229 tests (233 with the published files).
 
 **Live since 2026-11-22.** **Next:** the last polish (README, a social preview image, the GitHub page), then the postponed phone wait if it is still needed.
 
@@ -673,6 +702,11 @@ Then, from checking in the browser: the solver client now fails at once when the
 | `c82e7d6` | Join the English message for a game the computer starts with "but" |
 | `e5e108d` | Start every new player in Hebrew, addressed in the masculine |
 | `f8ff07b` | Name the footer link after both parts of its window |
+| `f37671d` | Update journey: review, polish, and the page goes live |
+| `49244a3` | Reword the rules window: rules of the game, and the algorithm |
+| `7ebaa1b` | Show the game's name at the top of the rules window |
+| `0240d3a` | Check that the feminine version uses no masculine form of address |
+| `00885d6` | New texts after a win and a draw |
 
 The Python prototype remains in the history at `47bbc6f`.
 
