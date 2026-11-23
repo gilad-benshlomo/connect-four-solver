@@ -98,12 +98,12 @@ const en: Strings = {
 
   youWin: 'You beat the perfect solver!',
   youWinMessage: (moves) =>
-    `Not one of your ${moves} moves let the win slip. That takes a perfect game, and you played one.`,
+    `To get here, you played a perfect game, ${moves} moves without a single mistake. Well done!`,
   computerWins: 'The computer wins',
   lasted: (moves) => (moves === 1 ? 'You lasted 1 move.' : `You lasted ${moves} moves.`),
   draw: 'A draw!',
   drawMessage:
-    'Well done, you’re almost there. A draw means you didn’t make a single losing move all game. Only a perfect game does better.',
+    'Well done, you’re almost there! A draw means you didn’t make a single losing move all game. A little more, and the win is yours.',
   playAgain: 'Play again',
   newGame: 'New game',
 
@@ -169,12 +169,12 @@ const heMasculine: Strings = {
 
   youWin: 'ניצחת את הפותר המושלם!',
   youWinMessage: (moves) =>
-    `אף אחד מ-${moves} המהלכים שלך לא איבד את הניצחון. זה דורש משחק מושלם, ושיחקת אחד כזה.`,
+    `כדי להגיע לרגע הזה שיחקת משחק מושלם, ${moves} מהלכים בלי אף טעות. כל הכבוד!`,
   computerWins: 'המחשב ניצח',
   lasted: (moves) => (moves === 1 ? 'החזקת מעמד מהלך אחד.' : `החזקת מעמד ${moves} מהלכים.`),
   draw: 'תיקו!',
   drawMessage:
-    'כל הכבוד, אתה כמעט שם. תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. רק משחק מושלם משיג יותר.',
+    'כל הכבוד, אתה כמעט שם! תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. עוד קצת ואתה מגיע לניצחון.',
   playAgain: 'עוד משחק',
   newGame: 'משחק חדש',
 
@@ -245,7 +245,7 @@ const heFeminine: Strings = {
   computerStartedMessage: 'את הולכת להפסיד, אבל בואי נראה כמה זמן תצליחי לשרוד.',
   playerStartedMessage: 'תוכלי לנצח רק אם תשחקי משחק מושלם.',
   drawMessage:
-    'כל הכבוד, את כמעט שם. תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. רק משחק מושלם משיג יותר.',
+    'כל הכבוד, את כמעט שם! תיקו אומר שלא עשית אף מהלך מפסיד במשך כל המשחק. עוד קצת ואת מגיעה לניצחון.',
   you: 'את',
   aboutText: [
     heMasculine.aboutText[0],

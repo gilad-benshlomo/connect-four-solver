@@ -45,7 +45,7 @@ describe('statusFor', () => {
     expect(statusFor(play('human', [0, 1, 0, 1, 0, 1, 0]), en, false)).toEqual({
       side: 'human',
       text: 'You beat the perfect solver!',
-      detail: 'Not one of your 4 moves let the win slip. That takes a perfect game, and you played one.',
+      detail: 'To get here, you played a perfect game, 4 moves without a single mistake. Well done!',
       busy: false,
     });
   });
