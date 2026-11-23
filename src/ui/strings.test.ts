@@ -59,6 +59,18 @@ describe('strings', () => {
     expect(changed.sort()).toEqual([...ADDRESSED_KEYS].sort());
   });
 
+  it('uses no masculine form of address in the feminine version', () => {
+    // Whole words only: "תוכל" is masculine, "תוכלי" is not.
+    const masculine = /(^|[\s,.!?:])(אתה|תוכל|תבחר|תשחק|תצליח|מגיע)(?=[\s,.!?:]|$)/;
+    for (const key of ADDRESSED_KEYS) {
+      for (const text of textsOf(ALL_STRINGS.heFeminine[key])) {
+        expect(text, key).not.toMatch(masculine);
+      }
+    }
+    // The pattern does find these forms, so a pass means something.
+    expect(textsOf(ALL_STRINGS.heMasculine.drawMessage).join(' ')).toMatch(masculine);
+  });
+
   it('explains who can win in two lines, the computer first', () => {
     for (const [, strings] of VERSIONS) {
       expect(strings.startExplanation).toHaveLength(2);
