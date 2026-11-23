@@ -62,6 +62,8 @@ Build a Connect Four game in which a visitor plays against the computer, playabl
 | D32 | **Language and form of address:** the first visit is in Hebrew, addressed in the masculine (until 2026-11-22 it followed the browser's language); the player's choice is then kept in the browser's storage. Hebrew has a masculine and a feminine version of the texts that address the player, chosen next to "who goes first" | No extra step before playing; a returning player finds the page as they left it. Storage may be blocked, so every use of it falls back quietly |
 | D33 | **"How to play" opens by itself once per visit**, kept in `sessionStorage` (a reload or a new game does not open it again; a new tab or browser session does). When the page opens it, the focus goes to the window itself, not to the close button | Visitors from a CV read what the project is before they play. Opening it before every game would be annoying; `sessionStorage` matches "a visit" with no code to expire it |
 | D34 | **Fireworks:** where and when the bursts go off and how the sparks move are pure functions (`fireworks.ts`, tested); `fireworksView.ts` only draws them on a canvas over the board. 15 s for a win, 4 s for a draw, at the same pace; nothing with reduced motion; clicks pass through | The same split as D30: what can be tested is tested, the drawing is checked by screenshots. The win lasts long enough to enjoy and to take a screenshot |
+| D35 | **Visits and games are counted with GoatCounter** (hosted, free for reasonable non-commercial use, no cookies, about 3.5 KB). Besides each visit, six events: a game started (who goes first) and a game ended (who went first and how). Each is sent twice: `games-…` with `no_session` counts every game, `people-…` counts each visitor once per GoatCounter session (browser and network, for up to 8 hours, nothing stored that identifies a person). `analytics.ts` works out the events as a pure function; sending ignores a missing or failing counter. Data is kept with no expiry (retention 0) and the dashboard is private | A deliberate exception to D29's "no requests to other servers": without it there is no way to know how many people played. GoatCounter is the option that keeps closest to D29 (no cookies, no consent banner, open source). The dashboard shows one number per path, so counting both games and people needs two names per event. Ad blockers block it, so the counts are a little low |
+| D36 | **On wide screens (880px and up) the rules window has two panels:** the game's name and its rules on white, with a small board that ends in four red discs in a diagonal; the algorithm on the board's blue. It has no "Got it" button there and closes with the X (larger, light on the blue), a click outside or Escape. On a phone the window stays exactly as before (checked pixel by pixel) | Designed by the user. The example board is played through the game's own rules (`rulesExample.ts`), so it can only show a real win, and it uses the board's own classes, so it looks like the real one |
 
 ---
 
@@ -469,6 +471,34 @@ Started by asking whether visits to the live site can be counted (GitHub Pages s
 - Show a design change as a screenshot of the real page before committing it; it took five rounds to get the window right, and none of them cost a commit.
 - When shooting the end of a game, the screenshot scripts now mark the window as already shown, or it covers the board.
 
+### 2026-11-23 (evening) — README, the rules window on wide screens, a visit counter, the share card
+**README** (`0384192`), planned section by section and approved before any text was written: what the game does for someone who does not program, how it works (a few lines per idea), the measurements, how correctness is checked, the project's structure, credits. In English; every claim checked against the code or this journal. The user removed a Hebrew line at the top and the response times on a phone, and asked that the centre be called the only winning first move *against perfect play*. Two images in `docs/`: a screenshot of a real game on a desktop and a phone, and a GIF of a real game against the solver. The first GIF showed a player who missed an obvious block; it was replaced by one where the player looks 8 moves ahead (a simple search written for the recording) and the computer still wins, with a diagonal.
+
+**The rules window on wide screens** (`d399299`, D36): built from the user's sketch, shown as screenshots of the real page in both languages, then a version without the "Got it" button, which the user chose. On a phone, screenshots before and after were compared pixel by pixel at three sizes and in both languages: identical. Checked at 1600, 1280, 1024 and 900px wide and at 110–150% display scaling. The keyboard focus ring was made white on the blue panel.
+
+**A visit counter** (`ba61528`, D35): the user opened a GoatCounter account (`connect-four-gilad`), guided step by step. First built to count each event once per visitor; the user asked to count games too, so each event is sent twice (`games-…` and `people-…`). Checked in Chrome with a fake counter (the right events, in order) and with the counter blocked (the game plays on, no errors). Live: three games played by the user showed `games-start-player-first` 2 and `people-start-player-first` 1, as designed. The dashboard's "Totals" also counts the events; the number of visits is the row of the page itself.
+
+**The share card** (`e5221fb`, `3a47b8d`, `b19f745`): `og:` and `twitter:` tags in `index.html` and a 1200×630 image (`public/og-image.png`): the board mid-game, "Connect Four", "You against a perfect solver.", "The computer never makes a mistake." and, at the user's suggestion, "How far can you get?". In English, though the post will be in Hebrew. LinkedIn's Post Inspector showed the card, then a warning that the description should be at least 100 characters; the description was rewritten ("…You can win, but only with a perfect game. How far can you get?"). LinkedIn kept the old image by its address, so the address got `?v=2`. On a phone, WhatsApp shows the card; WhatsApp on the user's PC showed no images for any site.
+
+**The repository page** (on GitHub, no commit): a new description ("This computer plays Connect Four's solution: it never makes a mistake. You can win, but only with a perfect game. How far can you get?"), nine topics, Releases and Packages hidden, and the share image as the social preview.
+
+**What the deliberate breaks showed:**
+
+| Bug introduced | Caught by |
+|---|---|
+| The rules example ending without a win | The whole test file failed to load ("must end in a win"), as predicted |
+| A rules example won in a column by the first player | 2 tests ("in a diagonal" and "half the discs each"), as predicted |
+| `gameEvents` not checking that the game was not already over | 1 test, "counts the end of a game only once", as predicted |
+| `no_session` left out of the games count | 1 test (2 were predicted: the `sendEvent` test compares with `countsFor` itself, so the two broke together) |
+
+**Measured:** tests: 244 here, 248 on the user's PC. The page's code is about 30 KB (about 10.3 KB compressed), the styles about 15 KB.
+
+**Lessons:**
+- Check what a dashboard really shows before relying on it: GoatCounter shows one number per row, and its total includes events.
+- Sites keep a shared image by its address; a new image needs a new address (`?v=`).
+- When a link preview fails, try a well-known site in the same app: it showed the problem was the app on one PC, not the page.
+- A recorded game should look like a real game: the GIF with an obvious mistake made the computer look less impressive, not more.
+
 ---
 
 ## Phase 1 — Python prototype (2026-11-03 → 2026-11-09)
@@ -513,9 +543,9 @@ Started by asking whether visits to the live site can be counted (GitHub Pages s
 - The tutorial's other example, `4455` (score 18, a win with the 4th disc), needs a deep search from move 4; keep it as a test for the speed stage.
 - `scripts/buildBook.ts` has no editor types for Node (`node:fs`, `process` are underlined in VS Code); harmless, as `tsc` checks only `src`. Could get its own small tsconfig with `@types/node` if wanted.
 - Possible speed-ups not taken: lookup tables for the bit masks in `PairPosition` (25–35% faster in a scratch test), local constants in hot loops, lower bounds in the table.
-- Mention the opening book and its sources (Allis 1988 for the first move) in the README.
+- ~~Mention the opening book and its sources (Allis 1988 for the first move) in the README.~~ Done (`0384192`).
 - A whitespace leftover in `src/solver/position.ts` (an empty line with two spaces, after `threatsAfter`); fix in a formatting-only commit.
-- Design a social preview image for the repo (shown when the link is shared on LinkedIn).
+- ~~Design a social preview image for the repo (shown when the link is shared on LinkedIn).~~ Done (2026-11-23).
 - Bump GitHub Actions versions once releases targeting Node 24 are available (current run shows Node 20 deprecation warnings; harmless for now).
 - GitHub notes that `ubuntu-latest` is moving to Ubuntu 26. The workflow uses only Node, npm and Vite, so no change is expected.
 - The book depth 10 is written in four places: `BOOK_DEPTH` in `books.ts`, and its own constant in `bookFiles.test.ts`, `buildBook.ts` and `checkBook.ts`; make them all use `BOOK_DEPTH` (a separate commit).
@@ -582,8 +612,9 @@ Started by asking whether visits to the live site can be counted (GitHub Pages s
 - 211 tests in 20 files; in CI the 4 tests that read the published files are skipped.
 - After the review (afternoon): `fireworks`, `fireworksView`, the once-per-visit window and the new texts; 227 tests in 21 files (231 with the published files).
 - 2026-11-23: the rules window and the end-of-game texts reworded; 229 tests (233 with the published files).
+- 2026-11-23 (evening): the rules window in two panels on wide screens, `rulesExample`, `analytics` and the share card; 244 tests in 23 files (248 with the published files).
 
-**Live since 2026-11-22.** **Next:** the last polish (README, a social preview image, the GitHub page), then the postponed phone wait if it is still needed.
+**Live since 2026-11-22.** README, share card, visit counter and repository page done on 2026-11-23. **Next:** the LinkedIn post, then the postponed phone wait if it is still needed.
 
 ---
 
@@ -612,6 +643,8 @@ Started by asking whether visits to the live site can be counted (GitHub Pages s
 | Claude design canvas | — | The approved design, before any UI code | Used for the design |
 | Chrome without a window (Playwright) | — | Screenshots and scripted games while building the page | Used by Claude |
 | Benchmark sets (Pascal Pons) | — | Published positions with exact scores, for tests and measurement | In use, local only (D18) |
+| GoatCounter | — | Counts visits and game events, no cookies (D35) | In use |
+| LinkedIn Post Inspector | — | Shows and refreshes the card LinkedIn builds for a link | Used for the share card |
 
 ## Commit history
 
@@ -707,6 +740,13 @@ Started by asking whether visits to the live site can be counted (GitHub Pages s
 | `7ebaa1b` | Show the game's name at the top of the rules window |
 | `0240d3a` | Check that the feminine version uses no masculine form of address |
 | `00885d6` | New texts after a win and a draw |
+| `161c589` | Update journey: the rules window and the end-of-game texts |
+| `0384192` | Rewrite the README for the finished game, with a screenshot and a gameplay GIF |
+| `d399299` | Show the rules window in two panels on wide screens, with an example win |
+| `ba61528` | Count visits, and games started and ended, with GoatCounter (no cookies) |
+| `e5221fb` | Add a share card for links: an image, a title and a description |
+| `3a47b8d` | Ask how far you can get, in the share card and its description |
+| `b19f745` | Give the share image a new address, so sites fetch the new one |
 
 The Python prototype remains in the history at `47bbc6f`.
 
@@ -719,4 +759,4 @@ The Python prototype remains in the history at `47bbc6f`.
 3. **Solver:** correctness first (benchmark tests), then speed, then an opening book. *In progress: correctness done 2026-11-15; speed done 2026-11-20 (fast board, table, null windows, threat ordering); both opening books built 2026-11-20, checked and committed 2026-11-21; `chooseColumn` and the Web Worker done 2026-11-21. Still open: shorten the wait on a phone just after the book (postponed).*
 4. ~~**Design:** visual style and a mockup for desktop and phone, approved before any UI code.~~ Done 2026-11-22.
 5. ~~**UI:** implement the design, animations, responsive layout, touch input.~~ Built 2026-11-22, reviewed, polished and live the same day.
-6. **Polish and README.**
+6. **Polish and README.** *README, share card, visit counter and repository page done 2026-11-23. Still open: the LinkedIn post.*
