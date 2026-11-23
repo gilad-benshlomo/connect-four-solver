@@ -1,6 +1,6 @@
 /**
- * The rules window: the rules in four lines, and a panel about the
- * algorithm. It is a native <dialog> opened as a modal, so the browser keeps
+ * The window with the game's name, its rules in four lines, and a panel about
+ * the algorithm. It is a native <dialog> opened as a modal, so the browser keeps
  * the keyboard focus inside it and closes it with Escape.
  */
 import { h } from './dom';
@@ -8,7 +8,9 @@ import type { Strings } from './strings';
 
 export class RulesDialog {
   readonly root: HTMLDialogElement;
-  private readonly title = h('h2', { class: 'rules-title', id: 'rules-title' });
+  private readonly gameTitle = h('h2', { class: 'rules-game-title', id: 'rules-game-title' });
+  private readonly gameSubtitle = h('p', { class: 'rules-game-subtitle' });
+  private readonly title = h('h3', { class: 'rules-title' });
   private readonly closeButton = h(
     'button',
     { type: 'button', class: 'icon-button' },
@@ -26,9 +28,10 @@ export class RulesDialog {
     this.root = h(
       'dialog',
       // tabindex lets the window itself take the focus (see open).
-      { class: 'rules', 'aria-labelledby': 'rules-title', tabindex: '-1' },
-      h('div', { class: 'rules-head' }, this.title, this.closeButton),
-      this.rules,
+      { class: 'rules', 'aria-labelledby': 'rules-game-title', tabindex: '-1' },
+      // The game's name first: a visitor who arrives from a link sees this window before the page.
+      h('div', { class: 'rules-head' }, h('div', {}, this.gameTitle, this.gameSubtitle), this.closeButton),
+      h('section', { class: 'rules-section' }, this.title, this.rules),
       h('section', { class: 'about', 'aria-labelledby': 'about-title' }, this.aboutTitle, this.aboutText, this.aboutPoints, this.aboutClosing, this.stats),
       this.gotItButton,
     );
@@ -54,6 +57,8 @@ export class RulesDialog {
 
   /** Shows the texts in the current language. */
   setStrings(strings: Strings): void {
+    this.gameTitle.textContent = strings.title;
+    this.gameSubtitle.textContent = strings.subtitle;
     this.title.textContent = strings.rulesTitle;
     this.closeButton.setAttribute('aria-label', strings.close);
     this.rules.replaceChildren(...strings.rules.map((rule) => h('li', {}, rule)));
