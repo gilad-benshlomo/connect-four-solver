@@ -761,7 +761,8 @@ a:hover {
 
 .rules-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
+  line-height: 1.2;
   font-weight: 700;
 }
 
@@ -806,7 +807,7 @@ a:hover {
 
 .about-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.2;
   font-weight: 700;
 }
@@ -822,6 +823,26 @@ a:hover {
 
 .about-text p {
   margin: 0;
+}
+
+/* One point per line, without bullets. */
+.about-points {
+  margin: -4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #e6edfd;
+}
+
+.about-closing {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 600;
 }
 
 .about-stats {

@@ -1,6 +1,6 @@
 /**
- * The "How to play" window: the rules in four lines, and a panel about the
- * computer. It is a native <dialog> opened as a modal, so the browser keeps
+ * The rules window: the rules in four lines, and a panel about the
+ * algorithm. It is a native <dialog> opened as a modal, so the browser keeps
  * the keyboard focus inside it and closes it with Escape.
  */
 import { h } from './dom';
@@ -17,6 +17,8 @@ export class RulesDialog {
   private readonly rules = h('ul', { class: 'rules-list' });
   private readonly aboutTitle = h('h3', { class: 'about-title', id: 'about-title' });
   private readonly aboutText = h('div', { class: 'about-text' });
+  private readonly aboutPoints = h('ul', { class: 'about-points' });
+  private readonly aboutClosing = h('p', { class: 'about-closing' });
   private readonly stats = h('dl', { class: 'about-stats' });
   private readonly gotItButton = h('button', { type: 'button', class: 'primary-button' });
 
@@ -27,7 +29,7 @@ export class RulesDialog {
       { class: 'rules', 'aria-labelledby': 'rules-title', tabindex: '-1' },
       h('div', { class: 'rules-head' }, this.title, this.closeButton),
       this.rules,
-      h('section', { class: 'about', 'aria-labelledby': 'about-title' }, this.aboutTitle, this.aboutText, this.stats),
+      h('section', { class: 'about', 'aria-labelledby': 'about-title' }, this.aboutTitle, this.aboutText, this.aboutPoints, this.aboutClosing, this.stats),
       this.gotItButton,
     );
     this.closeButton.addEventListener('click', () => this.root.close());
@@ -57,6 +59,8 @@ export class RulesDialog {
     this.rules.replaceChildren(...strings.rules.map((rule) => h('li', {}, rule)));
     this.aboutTitle.textContent = strings.aboutTitle;
     this.aboutText.replaceChildren(...strings.aboutText.map((paragraph) => h('p', {}, paragraph)));
+    this.aboutPoints.replaceChildren(...strings.aboutPoints.map((point) => h('li', {}, point)));
+    this.aboutClosing.textContent = strings.aboutClosing;
     this.stats.replaceChildren(
       ...strings.stats.map((stat) => h('div', { class: 'stat' }, h('dt', {}, stat.label), h('dd', {}, stat.value))),
     );

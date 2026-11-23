@@ -67,12 +67,23 @@ describe('strings', () => {
     expect(ALL_STRINGS.heFeminine.startExplanation[0]).toBe(ALL_STRINGS.heMasculine.startExplanation[0]);
   });
 
-  it('tells about the computer in two paragraphs, the second the same in both Hebrew versions', () => {
+  it('lists how the algorithm decides fast, the same points in every version', () => {
+    const count = ALL_STRINGS.en.aboutPoints.length;
+    expect(count).toBeGreaterThan(0);
     for (const [, strings] of VERSIONS) {
-      expect(strings.aboutText).toHaveLength(2);
+      expect(strings.aboutPoints).toHaveLength(count);
     }
-    // Only the first paragraph addresses the player.
-    expect(ALL_STRINGS.heFeminine.aboutText[1]).toBe(ALL_STRINGS.heMasculine.aboutText[1]);
+    expect(ALL_STRINGS.heFeminine.aboutPoints).toEqual(ALL_STRINGS.heMasculine.aboutPoints);
+    expect(ALL_STRINGS.heFeminine.aboutClosing).toBe(ALL_STRINGS.heMasculine.aboutClosing);
+  });
+
+  it('tells about the algorithm in three paragraphs, only the second addressing the player', () => {
+    for (const [, strings] of VERSIONS) {
+      expect(strings.aboutText).toHaveLength(3);
+    }
+    expect(ALL_STRINGS.heFeminine.aboutText[0]).toBe(ALL_STRINGS.heMasculine.aboutText[0]);
+    expect(ALL_STRINGS.heFeminine.aboutText[1]).not.toBe(ALL_STRINGS.heMasculine.aboutText[1]);
+    expect(ALL_STRINGS.heFeminine.aboutText[2]).toBe(ALL_STRINGS.heMasculine.aboutText[2]);
   });
 
   it('counts the moves the player lasted, one or many', () => {
